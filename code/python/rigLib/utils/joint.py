@@ -39,3 +39,27 @@ def jointOrient( Joints ):
 	mc.select(endJnt )
 	mc.xform( r = 1, ro = ( -90, -90, 0) )
 	mc.makeIdentity( apply = 1,t = 0, r = 1, s = 0, n = 0, pn = 1)
+
+def duplicateChain( Joints, oldSuffix = 'jnt', newSuffix = 'jnt1'):
+
+	# clear maya selection
+	mc.select(cl=1)
+
+	newJoints = []
+
+	for jnt in Joints:
+		newJoints.append(jnt.replace(oldSuffix, newSuffix))
+
+	zippedList = list(zip(Joints, newJoints))
+
+	# make new joint chain
+
+	for oldJnt, newJnt in zippedList:
+		mc.joint(n=newJnt)
+		mc.matchTransform(newJnt, oldJnt)
+
+	# clear maya selection
+	mc.select(cl = 1)
+
+	return newJoints
+

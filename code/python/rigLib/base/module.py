@@ -11,19 +11,20 @@ class Base():
     class for building top rig structure
     """
 
-    def __init__(
-            self,
-            characterName = 'new',
-            scale = 1.0,
-            ):
-        
+    def __init__(self, characterName = 'new', scale = 1.0):
         """
         @param characterName: str, character name
         @param scale: float, general scale of the rig
         @return: None
         """
+        self.characterName = characterName
+        self.scale = scale
 
-        self.topGrp = mc.group(n=characterName, em=1)
+
+
+    def build(self):
+
+        self.topGrp = mc.group(n=self.characterName, em=1)
         self.rigGrp = mc.group(n='rig_grp', em=1, p=self.topGrp)
         self.modelGrp = mc.group(n='model_grp', em=1, p=self.topGrp)
 
@@ -33,13 +34,13 @@ class Base():
         for at in [characterNameAttr, sceneObjectTypeAttr]:
             mc.addAttr(self.topGrp, ln=at, dt='string')
 
-        mc.setAttr(self.topGrp + '.' + characterNameAttr, characterName, type='string', l=1)
+        mc.setAttr(self.topGrp + '.' + characterNameAttr, self.characterName, type='string', l=1)
         mc.setAttr(self.topGrp + '.' + sceneObjectTypeAttr, sceneObjectType, type='string', l=1)
 
         # make global TRS control
         self.global1Ctrl = control.Control(
             prefix = 'global',
-            scale = scale * 8,
+            scale = self.scale * 8,
             parent = self.rigGrp,
             lockChannels = ['v'],
             offsets = ['master', 'shot']
@@ -61,7 +62,7 @@ class Base():
         # make rig control with visibility attributes
         mainCtrl = control.Control(
             prefix='main',
-            scale=scale * 1,
+            scale=self.scale * 1,
             parent=self.global1Ctrl.C,
             lockChannels=['v', 't', 'r', 's'],
             offsets= None
@@ -96,6 +97,14 @@ class Base():
         clusters = mc.cluster(ctrlShapes)[1]
         mc.setAttr(clusters + '.rz', 90)
         mc.delete(ctrlShapes, ch=1)
+
+    def _adjustMainCtrShape(self, ctr, scale):
+
+        ctrlShapes = mc.listRelatives(ctr.C, s=1, type='nurbsCurve')
+        cls = mc.cluster(ctrlShapes)[1]
+        mc.setAttr(cls + '.ry', 90)
+        mc.delete(ctrlShapes, ch=1)
+        mc.move(5* scale, ctr.Off, moveY = True, relative = True)
 
 class Module():
     """

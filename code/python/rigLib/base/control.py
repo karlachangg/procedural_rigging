@@ -49,8 +49,8 @@ class Control():
 		
 		elif shape == 'sphere':
 			
-			ctrlObject = mc.circle( n = prefix + '_CTR', ch = False, normal = [1, 0, 0])[0]
-			addShape = mc.circle( n = prefix + '_CTR2', ch = False, normal = [0, 0, 1])[0]
+			ctrlObject = mc.circle( n = prefix + '_ctr', ch = False, normal = [1, 0, 0])[0]
+			addShape = mc.circle( n = prefix + '_ctr2', ch = False, normal = [0, 0, 1])[0]
 			mc.parent( mc.listRelatives( addShape, s = 1 ), ctrlObject, r = 1, s = 1 )
 			mc.delete( addShape )
 		
@@ -99,7 +99,7 @@ class Control():
 		#mc.parent( ctrlOffsetZero, ctrlOffsetNull )
 		
 
-		#Change Colors 
+		# Change Colors
 	
 		ctrlShapes = mc.listRelatives( ctrlObject, s = 1 )
 		[ mc.setAttr( s + '.ove', 1 ) for s in ctrlShapes ]
@@ -317,8 +317,6 @@ def create_orb(prefix):
 		mc.select(control, tgl=True)
 		mc.parent(r=True, s=True)
 		mc.delete(each)
-	
-	print('HERE')
 
 	mc.xform(control, cp=True)
 

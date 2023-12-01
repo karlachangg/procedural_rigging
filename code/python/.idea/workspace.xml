@@ -1,7 +1,26 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="73c9d649-9df9-4930-a027-20ca9818176a" name="Default Changelist" comment="" />
+    <list default="true" id="73c9d649-9df9-4930-a027-20ca9818176a" name="Default Changelist" comment="">
+      <change afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/rigLib/.idea/vcs.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/rigLib/rig/fkChain.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/rigLib/rig/ikChain.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/rigLib/rig/leg.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/rigLib/rig/legFKIK.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/charLib/.idea/modules.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/charLib/.idea/workspace.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/charRig/biped.py" beforeDir="false" afterPath="$PROJECT_DIR$/charRig/biped.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/charRig/char.py" beforeDir="false" afterPath="$PROJECT_DIR$/charRig/char.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/rigLib/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/rigLib/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/rigLib/base/control.py" beforeDir="false" afterPath="$PROJECT_DIR$/rigLib/base/control.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/rigLib/base/module.py" beforeDir="false" afterPath="$PROJECT_DIR$/rigLib/base/module.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/rigLib/rig/__init__.py" beforeDir="false" afterPath="$PROJECT_DIR$/rigLib/rig/__init__.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/rigLib/rig/neck.py" beforeDir="false" afterPath="$PROJECT_DIR$/rigLib/rig/neck.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/rigLib/rig/spine.py" beforeDir="false" afterPath="$PROJECT_DIR$/rigLib/rig/spine.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/rigLib/utils/joint.py" beforeDir="false" afterPath="$PROJECT_DIR$/rigLib/utils/joint.py" afterDir="false" />
+    </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -15,7 +34,15 @@
       </list>
     </option>
   </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$/../.." />
+  </component>
   <component name="ProjectId" id="1RuCgilytee3nN8wGo0x6FVa04e" />
+  <component name="ProjectLevelVcsManager" settingsEditedManually="true" />
+  <component name="PropertiesComponent">
+    <property name="SHARE_PROJECT_CONFIGURATION_FILES" value="true" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$" />
+  </component>
   <component name="RunDashboard">
     <option name="ruleStates">
       <list>
@@ -40,5 +67,32 @@
       <updated>1570507706060</updated>
     </task>
     <servers />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+  <component name="XDebuggerManager">
+    <breakpoint-manager>
+      <breakpoints>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/rigLib/utils/transform.py</url>
+          <line>6</line>
+          <option name="timeStamp" value="1" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/rigLib/rig/spine.py</url>
+          <line>3</line>
+          <option name="timeStamp" value="2" />
+        </line-breakpoint>
+      </breakpoints>
+    </breakpoint-manager>
   </component>
 </project>
