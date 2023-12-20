@@ -165,10 +165,14 @@ class Control():
 
 		self.C = ctrlObject
 
-		if offsets is not None:
-			self.Off = offsetGrps[0]
-		else:
+		if offsets is None:
 			self.Off = ctrlObject
+
+		elif len(offsets) > 1:
+			self.Off = offsetGrps[0]
+			self.Offsets = offsetGrps
+		else:
+			self.Off = offsetGrps[0]
 
 #Control Shape Functions	
 def create_circle():

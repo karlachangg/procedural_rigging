@@ -14,6 +14,7 @@ from rigLib.rig import spine
 from rigLib.rig import neck
 from rigLib.rig import ikChain
 from rigLib.rig import legFKIK
+from rigLib.rig import armFKIK
 
 from rigLib.utils import joint
 
@@ -81,7 +82,6 @@ class Biped(char.Character):
             legJoints = legJoints,
             toeJoint = toeJoint,
             hipPivotJoint = hipPivotJoint,
-            pvLocator = '',
             prefix = 'leg',
             side = 'l',
             rigScale = self.sceneScale,
@@ -94,7 +94,6 @@ class Biped(char.Character):
             legJoints = legJoints,
             toeJoint = toeJoint,
             hipPivotJoint = hipPivotJoint,
-            pvLocator = '',
             prefix = 'leg',
             side = 'r',
             rigScale = self.sceneScale,
@@ -102,6 +101,39 @@ class Biped(char.Character):
             )
 
         rightLegRig.build()
+
+        # left arm
+        armJoints = ['shoulder_jnt', 'elbow_jnt', 'wrist_jnt']
+        scapulaJnt = 'clavicle_jnt'
+
+        leftArmRig = armFKIK.Arm(
+            armJoints = armJoints,
+            scapulaJoint = scapulaJnt,
+            prefix = 'arm',
+            side = 'l',
+            rigScale = self.sceneScale,
+            baseRig = baseRig
+            )
+
+        leftArmRig.build()
+
+        # attach left arm to spine
+        mc.parentConstraint(spineRig.rigParts['chestAttachGrp'], leftArmRig.rigParts['bodyAttachGrp'], mo=1)
+
+        rightArmRig = armFKIK.Arm(
+            armJoints = armJoints,
+            scapulaJoint = scapulaJnt,
+            prefix = 'arm',
+            side = 'r',
+            rigScale = self.sceneScale,
+            baseRig = baseRig
+            )
+        rightArmRig.build()
+
+        # attach right arm to spine
+        mc.parentConstraint(spineRig.rigParts['chestAttachGrp'], rightArmRig.rigParts['bodyAttachGrp'], mo=1)
+
+
 
 
 

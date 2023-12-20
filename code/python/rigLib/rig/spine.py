@@ -70,6 +70,9 @@ class Spine():
 
         mc.parent(fkRig['controls'][0].Off, bodyCtrl.C)
 
+        # fk root joint follows body control
+        mc.parentConstraint(bodyCtrl.C, fkRig['root'])
+
 
         # Connect deformation joints to fk and ik joints
 
@@ -169,7 +172,7 @@ class Spine():
         fkJoints.append(fk_chest_jnt)
 
         fkControlChain = fkChain.build( joints = fkSpineJoints, rigScale = self.rigScale * 2,
-                                        shape = 'circleY', lockChannels = [])
+                                        shape = 'circleY', lockChannels = ['t'])
         controls = fkControlChain['controls']
 
         return {'joints': fkJoints, 'controls': controls, 'root': fk_root_jnt, 'chest': fk_chest_jnt }

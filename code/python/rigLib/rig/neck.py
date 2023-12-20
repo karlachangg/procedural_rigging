@@ -152,7 +152,8 @@ def build(
         mc.connectAttr('{}.scale'.format(ikJnt), '{}.scale'.format(defJnt))
 
     # connect head joint to head control
-    mc.parentConstraint(headMainCtr.C, headJnt, mo=1)
+    headConstraint = mc.parentConstraint(headMainCtr.C, headJnt, mo=1)[0]
+    constraints.append(headConstraint)
 
     # make head orient groups
     worldGrp = mc.group(n='globalOrient', em=True)

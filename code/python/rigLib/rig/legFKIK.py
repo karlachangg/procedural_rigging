@@ -16,7 +16,6 @@ class Leg():
             legJoints,
             toeJoint,
             hipPivotJoint,
-            pvLocator,
             prefix = 'leg',
             side = 'l',
             rigScale = 1.0,
@@ -26,7 +25,6 @@ class Leg():
         :param legJoints: list(str), hip - knee - ankle
         :param toeJoint: str, toe joint
         :param hipPivotJoint: str, hip position joint
-        :param pvLocator: str, reference locator for position of pole vector control
         :param prefix: str, prefix to name new objects
         :param rigScale: float, scale factor for size of controls
         :param baseRig: instance of base.module.Base class
@@ -41,7 +39,6 @@ class Leg():
 
         self.toeJoint = side + '_' + toeJoint
         self.hipPivotJoint = side + '_' + hipPivotJoint
-        self.pvLocator = pvLocator
         self.prefix = side + '_' + prefix
         self.side = side
         self.rigScale = rigScale
@@ -52,7 +49,7 @@ class Leg():
         self.rigmodule = module.Module(prefix=self.prefix, baseObj=self.baseRig)
 
         # make attach groups
-        bodyAttachGrp = mc.group(n='{}_BodyAttach_grp', em=1, p=self.rigmodule.partsGrp)
+        bodyAttachGrp = mc.group(n = '{}_BodyAttach_grp'.format(self.prefix), em=1, p = self.rigmodule.partsGrp)
 
 
     def build(self):
@@ -122,16 +119,13 @@ class Leg():
 
         # make controls
 
-        controls = []
         hipCtr = control.Control(prefix = '{}_hip'.format(self.prefix), translateTo = fkJoints[0], rotateTo = fkJoints[0],
                                   scale = self.rigScale * 1.5, parent = self.rigmodule.controlsGrp, shape = 'circleX')
         kneeCtr = control.Control(prefix = '{}_knee'.format(self.prefix), translateTo = fkJoints[1], rotateTo = fkJoints[1],
                                   scale = self.rigScale, parent = hipCtr.C, shape = 'circleX')
         footCtr = control.Control(prefix = '{}_foot'.format(self.prefix), translateTo = fkJoints[2], rotateTo = fkJoints[2],
                                         scale = self.rigScale, parent = kneeCtr.C, shape = 'circleY')
-        controls.append( hipCtr )
-        controls.append( kneeCtr )
-        controls.append( footCtr )
+        controls = [hipCtr, kneeCtr, footCtr]
 
         # connect controls
 
@@ -167,22 +161,29 @@ class Leg():
                                   scale=self.rigScale, parent = self.rigmodule.controlsGrp, shape='square')
         poleVectorCtr = control.Control(prefix='{}_leg_pv'.format(self.prefix), translateTo=ikJoints[1],
                                  scale=self.rigScale * 0.5, parent = self.rigmodule.controlsGrp, shape='orb')
-        controls.append(legCtr)
-        controls.append(poleVectorCtr)
+
+        controls = [legCtr, poleVectorCtr]
 
         # move pole vector ctr
         mc.move( 5, poleVectorCtr.Off, z = True, os = 1)
 
         # make IK handle
-        legIK = mc.ikHandle(n='{}_leg_ikh'.format(self.prefix), sol='ikRPsolver', sj=ikJoints[0], ee=ikJoints[2])[0]
+        legIK = mc.ikHandle(n='{}_ikh'.format(self.prefix), sol='ikRPsolver', sj=ikJoints[0], ee=ikJoints[2])[0]
         mc.hide(legIK)
         mc.parent(legIK, self.rigmodule.noXformGrp)
+
+        # create no follow PV locator
+        pvNoFollow = mc.spaceLocator(n = '{}_pv_noFollow'.format(self.prefix))
+        mc.parent(pvNoFollow, self.rigmodule.partsGrp)
+        mc.matchTransform(pvNoFollow, poleVectorCtr.C)
 
         # pole vector position setup
         poleAimLeg = mc.group(n = '{}_poleAim'.format(self.prefix), em = 1)
         upVector = mc.group(n = '{}_pv_upVec'.format(self.prefix), em = 1)
         mc.delete(mc.parentConstraint(legCtr.C, upVector, mo=0))
-        mc.parent(upVector, legCtr.C)
+        mc.parent(upVector, self.rigmodule.partsGrp)
+        mc.parentConstraint(legCtr.C, upVector, sr = 'x', mo = 1)
+
 
         mc.pointConstraint(ikJoints[0], poleAimLeg, mo = 0)
         mc.aimConstraint(legCtr.C, poleAimLeg, aimVector = (1,0,0), upVector = (0,0,1),
@@ -194,12 +195,21 @@ class Leg():
         poleOffsetFollow = mc.group(n = '{}_poleOffsetFollow'.format(self.prefix), em = 1)
         mc.delete(mc.parentConstraint(poleVectorCtr.C, poleOffsetFollow, mo = 0))
         mc.parentConstraint( poleOffsetFollow_noScale, poleOffsetFollow, mo = 1 )
-
-        mc.parentConstraint( poleOffsetFollow, poleVectorCtr.Off, mo=1)
         mc.parent(poleAimLeg, self.rigmodule.partsGrp)
         mc.parent(poleOffsetFollow_noScale, self.rigmodule.partsGrp)
         mc.parent(poleOffsetFollow, self.rigmodule.partsGrp)
 
+        # constrain pv
+        pv_constraint = mc.parentConstraint(poleOffsetFollow, pvNoFollow, poleVectorCtr.Off, mo = 1)[0]
+        weights = mc.parentConstraint(pv_constraint, q=1, weightAliasList=1)
+        # setup pv follow switch
+        pv_follow_attr = 'Follow'
+        mc.addAttr(poleVectorCtr.C, ln = pv_follow_attr, at = 'double', min=0, max=1, dv=1, k=1)
+        mc.connectAttr('{}.{}'.format(poleVectorCtr.C, pv_follow_attr), '{}.{}'.format(pv_constraint, weights[0]))
+        reverse = mc.shadingNode('reverse', asUtility=True, n='{}_pvFollow_reverse'.format(self.prefix))
+        mc.connectAttr('{}.{}'.format(poleVectorCtr.C, pv_follow_attr), '{}.inputX'.format(reverse))
+        mc.connectAttr('{}.outputX'.format(reverse), '{}.{}'.format(pv_constraint, weights[1]))
+        mc.parent(pv_constraint, self.rigmodule.noXformGrp)
 
         # attach objects to controls
         mc.parentConstraint(legCtr.C, legIK)
