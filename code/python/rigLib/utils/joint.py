@@ -45,6 +45,9 @@ def duplicateChain( joints, oldSuffix = 'jnt', newSuffix = 'jnt1'):
 	# clear maya selection
 	mc.select(cl=1)
 
+	if not isinstance(joints, list ):
+		joints = [joints]
+
 	newJoints = []
 
 	for jnt in joints:
