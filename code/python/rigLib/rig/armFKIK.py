@@ -15,7 +15,6 @@ class Arm():
     def __init__(self,
             armJoints,
             scapulaJoint,
-            bodyAttach = '',
             prefix = 'arm',
             side = 'l',
             rigScale = 1.0,
@@ -37,16 +36,19 @@ class Arm():
 
 
         self.scapulaJoint = side + '_' + scapulaJoint
-        self.bodyAttach = bodyAttach
         self.prefix = side + '_' + prefix
         self.side = side
         self.rigScale = rigScale
         self.baseRig = baseRig
 
-
         # make rig module
 
         self.rigmodule = module.Module(prefix = self.prefix, baseObj = self.baseRig)
+
+        self.rigParts = {'bodyAttachGrp': '',
+                         'handAttachGrp': ''
+                         }
+
 
     def build(self):
 
@@ -135,12 +137,17 @@ class Arm():
         mc.pointConstraint(scapRig['armAttach'], ikRig['baseAttachGrp'], mo = 1 )
         mc.orientConstraint(scapRig['armAttach'], ikRig['baseAttachGrp'], mo=1)
 
-        # return attach group
-        bodyAttachGrp = scapRig['bodyAttach']
+        # Create hand attach group
+        handAttachGrp = mc.group(em=1, n = '{}_handAttachGrp'.format(self.prefix) )
+        mc.parent(handAttachGrp, self.rigmodule.partsGrp)
+        mc.parentConstraint(self.armJoints[2], handAttachGrp, mo = 0)
 
-        self.rigParts =  { 'bodyAttachGrp': bodyAttachGrp}
+        # return set group
+        self.rigParts['bodyAttachGrp'] = scapRig['bodyAttach']
+        self.rigParts['handAttachGrp'] = handAttachGrp
         
         # Set default animation pose to T pose
+
         self.tPose(fkControls = fkRig['controls'],
                    pvControl = ikRig['controls'][1],
                    ikRotateGrp= ikRig['rotateGrp']
@@ -230,7 +237,7 @@ class Arm():
         poleOffsetFollow_noScale = mc.group(n='{}_poleOffsetFollow_noScale'.format(self.prefix), em=1)
         mc.parent(poleOffsetFollow_noScale, poleOffsetFollow_noScale_offset)
         mc.delete(mc.parentConstraint(armCtr.C, poleOffsetFollow_noScale_offset, mo = 0))
-        mc.orientConstraint(armCtr.C, poleOffsetFollow_noScale, mo = 1 )
+        poleFollowOrientConstraint = mc.orientConstraint(armCtr.C, poleOffsetFollow_noScale, mo = 1 )[0]
         pvFollow = mc.group(n='{}_pv_Follow'.format(self.prefix), em=1)
         mc.delete(mc.parentConstraint(poleVectorCtr.C, pvFollow, mo=0))
         mc.parentConstraint(poleOffsetFollow_noScale, pvFollow, mo=1)
@@ -250,12 +257,21 @@ class Arm():
         mc.connectAttr('{}.{}'.format(poleVectorCtr.C, pv_follow_attr), '{}.inputX'.format(reverse))
         mc.connectAttr('{}.outputX'.format(reverse), '{}.{}'.format(pv_constraint, weights[1]))
         mc.parent(pv_constraint, self.rigmodule.noXformGrp)
+        mc.setAttr('{}.{}'.format(poleVectorCtr.C, pv_follow_attr), 1)
+
+        # Add spin attribute
+
+        spin_attr = 'Spin'
+        mc.addAttr(armCtr.C, ln=spin_attr, at='double', dv=0, k=1)
+        mc.connectAttr('{}.{}'.format(armCtr.C, spin_attr), '{}.offsetX'.format(poleFollowOrientConstraint))
+
 
         # attach objects to controls
         mc.parentConstraint(armCtr.C, armIK, mo = 1)
         mc.poleVectorConstraint(poleVectorCtr.C, armIK)
         mc.orientConstraint(wristGimbalCtr.C, ikJoints[2], mo=1)
         mc.parent(wristGimbalCtr.Off, armCtr.C)
+
 
         # attach to shoulderAttachGrp
         mc.pointConstraint(shoulderAttachGrp, ikJoints[0], mo = 1 )
@@ -268,7 +284,10 @@ class Arm():
         mc.parentConstraint(rotateAllGrp, pvNoFollow, mo=1)
         mc.parentConstraint(rotateAllGrp, poleOffsetFollow_noScale_offset, mo=1)
 
-        # make stretchy leg
+
+
+
+        # make stretchy arm
 
         # Create group to follow shoulder location
         followClavGrp = mc.group(n='{}_IKClavicleFollow'.format(self.prefix), em=1)
@@ -324,11 +343,11 @@ class Arm():
         stretch_attr = 'Stretchy'
         mc.addAttr(armCtr.C, ln=stretch_attr, at='double', min=0, max=1, dv=0, k=1)
 
-        # make blender node for upper leg
+        # make blender node for upper arm
         blenderStretchUpperArm = mc.shadingNode('blendTwoAttr', asUtility=True, n='{}_blenderArmUpper_stretch'.format(self.prefix))
         mc.connectAttr('{}.{}'.format(armCtr.C, stretch_attr), '{}.attributesBlender'.format(blenderStretchUpperArm))
 
-        # make blender node for lower leg
+        # make blender node for lower arm
         blenderStretchLowerArm = mc.shadingNode('blendTwoAttr', asUtility=True, n='{}_blenderArmLower_stretch'.format(self.prefix))
         mc.connectAttr('{}.{}'.format(armCtr.C, stretch_attr), '{}.attributesBlender'.format(blenderStretchLowerArm))
 
@@ -412,6 +431,7 @@ class Arm():
                              outTangentType='spline')
 
         animCurveLowerArm = mc.keyframe(sdkDrivenLower, query=True, name=True)[0]
+
         if self.side == 'l':
             mc.setAttr('{}.postInfinity'.format(animCurveLowerArm), 1)
         elif self.side == 'r':
@@ -527,6 +547,7 @@ class Arm():
         mc.parent(endPos, self.rigmodule.partsGrp)
         mc.delete(mc.parentConstraint(self.armJoints[0], endPos))
         mc.parent(endPos, scapCtr.C)
+        mc.hide(endPos)
 
         # make body attach group
         bodyAttachGrp = mc.group(n= '{}_scap_bodyAttachGrp'.format(self.prefix),em = 1, p = self.rigmodule.partsGrp)

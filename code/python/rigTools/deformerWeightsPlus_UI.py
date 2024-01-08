@@ -4,6 +4,7 @@ Skincluster Weights Importer /Exporter Tool
 ui window module
 '''
 from . import deformerWeightsPlus
+from charRig import project
 
 import maya.cmds as mc
 import maya.mel as mel
@@ -49,8 +50,8 @@ class deformerWeightsPlusUI():
 		mc.separator(style='in', height=20)
 
 		# Set character name if it exists
-		self.charName_TFBG = mc.textFieldButtonGrp( label='Character:', editable = 1, buttonLabel='Load Selected',
-			columnAlign = [1, 'left'], buttonCommand= self.setCharacterName )
+		self.charName_TFBG = mc.textFieldButtonGrp( label='Character (Optional):', editable = 1, buttonLabel='Load Selected',
+			columnAlign = [1, 'left'], buttonCommand= self.loadSelectedCharacter, changeCommand = self.setFilepath_field )
 
 		# Input field for filepath and name to export
 
@@ -76,7 +77,7 @@ class deformerWeightsPlusUI():
 													 columnAttach3 = ['left', 'left', 'left'],
 													 columnWidth3 = [tmpRowWidth[1] * 0.1, tmpRowWidth[1]  * 0.5, tmpRowWidth[1] * 0.3],
 													 adjustableColumn = 2 , buttonCommand=self.loadSelectedMesh, enableButton = 0,
-													 changeCommand = self.validateEntry )
+													  )
 
 		# Option 2 radio button
 		self.all_RB = mc.radioButton('allMeshes', l ='All', onCommand = partial (self.toggleMeshOption, state = 1)  )
@@ -103,14 +104,38 @@ class deformerWeightsPlusUI():
 
 	def setInitialState(self):
 
-		mc.radioButton(self.selected_RB, edit=1, select =1)
-		mc.textFieldButtonGrp(self.selectMesh_TFBG, edit=1, enableButton=1, editable=1)
+		mc.radioButton(self.all_RB, edit=1, select = 1)
+		mc.textFieldButtonGrp(self.selectMesh_TFBG, edit=1, enableButton=0, editable=0)
 
+		char = self.getTopNode()
+		if char:
+			mc.textFieldButtonGrp(self.charName_TFBG, edit=1, text=char)
+			self.setFilepath_field()
 
+	def loadSelectedCharacter(self, *args):
 
-	def setCharacterName(self, *args):
+		# Get selected objects
+		selected = mc.ls(sl=1)
 
-		pass
+		if not selected:
+			raise Exception("No objects selected.")
+
+		if len(selected) > 1:
+			raise Exception("More than one object selected. Please select only one object.")
+
+		if not mc.objectType(selected, isType='transform'):
+			raise Exception("Invalid selection. Please select a transform object.")
+
+		text = formatList_to_string(selected)
+		mc.textFieldButtonGrp(self.charName_TFBG, edit=1, text = text)
+		self.setFilepath_field()
+
+	def setFilepath_field(self, *args):
+
+		characterName = mc.textFieldButtonGrp(self.charName_TFBG, q= 1, text = 1)
+		wtFolder = os.path.join(project.mainProjectPath, characterName, project.skinWeightsDir )
+		mc.textFieldButtonGrp(self.filepath_TFBG, edit=1, text = wtFolder)
+
 
 	def loadSelectedMesh(self, *args):
 
@@ -128,11 +153,10 @@ class deformerWeightsPlusUI():
 		# format list for text field
 		meshObjects = formatList_to_string(selected)
 		mc.textFieldButtonGrp(self.selectMesh_TFBG, edit = 1, text = meshObjects )
-		self.setSelectedMeshes()
 
 
 
-	def isValid(self, object):
+	def isValid(self, object, action = ''):
 
 		# check that object exists:
 		if not mc.objExists(object):
@@ -144,77 +168,26 @@ class deformerWeightsPlusUI():
 			print("{} is not a mesh object.".format(object))
 			return False
 
-		# check that object has a skincluster deformer
-		if not deformerWeightsPlus.findRelatedSkinCluster(object):
-			print("{} does not have a skinCluster attached.".format(object))
-			return False
+		if action == 'save':
+
+			# check that object has a skincluster deformer
+			if not deformerWeightsPlus.findRelatedSkinCluster(object):
+				print("{} does not have a skinCluster attached.".format(object))
+				return False
+			else:
+				return True
+
+		if action == 'load':
+			# check if object has a skincluster deformer
+			if deformerWeightsPlus.findRelatedSkinCluster(object):
+				print("{} has a skinCluster attached.".format(object))
+				return False
+			else:
+				return True
+
 
 		else:
 			return True
-
-
-
-
-	def validateEntry(self, *args):
-
-		print("Validating...")
-
-		# Get value from text field
-		text = mc.textFieldButtonGrp(self.selectMesh_TFBG, q=1, text=1)
-
-		if text:
-			objects = formatString_to_list(text)
-
-			for obj in objects:
-				if not self.isValid(obj):
-					print('Invalid Entry')
-					mc.textFieldButtonGrp(self.selectMesh_TFBG, edit=1, text='')
-					return
-
-			# Validated
-			self.setSelectedMeshes()
-
-		else:
-			# set geo List to empty
-			self.geoList = []
-			print('no loaded meshes')
-			print('Geometry: {}'.format(self.geoList))
-
-
-
-
-
-
-
-
-
-
-	def setSelectedMeshes(self):
-
-		# Get value from text field
-		text = mc.textFieldButtonGrp(self.selectMesh_TFBG, q = 1, text = 1 )
-
-		if (text):
-			# Set self.geoList to input
-			objects = formatString_to_list(text)
-			self.geoList = objects
-			print('Geometry: {}'.format(self.geoList))
-
-		else:
-			# set geo List to empty
-			self.geoList = []
-			print('no loaded meshes')
-			print('Geometry: {}'.format(self.geoList))
-
-
-		'''
-
-		skinnedGeo = self.loadSelectedMesh()
-
-		self.geoList = skinnedGeo
-
-		print('Geometry: {}'.format(self.geoList))
-		'''
 
 
 	def getAllSkinnedMeshes(self):
@@ -230,54 +203,140 @@ class deformerWeightsPlusUI():
 
 		return skinnedGeo
 
+	def getAllMeshes(self):
 
-	def setAllSkinnedMeshes(self):
+		shapes = mc.ls(type = 'mesh')
+		meshes = []
 
-		skinnedGeo = self.getAllSkinnedMeshes()
+		for each in shapes:
+			geo = mc.listRelatives(each, parent = 1)[0]
 
-		self.geoList = skinnedGeo
+			if not deformerWeightsPlus.findRelatedSkinCluster(geo):
 
-		print('Geometry: {}'.format(self.geoList))
+				if geo not in meshes:
+					meshes.append(geo)
+
+		print('All non-skinned meshes: {}'.format(meshes))
+		return meshes
+
+	def getTopNode(self):
+		topNode = ''
+
+		# Get top node in scene if there is only one
+		assemblies = mc.ls(assemblies = True)
+
+		remove = ['persp', 'top', 'side', 'front']
+		for each in remove:
+			assemblies.remove(each)
+		if len(assemblies) == 1:
+			topNode = assemblies[0]
+
+		return topNode
+
+
+	def getGeometry(self, action =  ''):
+		# Get geometry to export or import
+		option = mc.radioCollection(self.meshes_RBCOLL, q=1, select=1)
+
+		if action == 'save':
+
+			if option == 'selectedMeshes':
+				geometry = []
+				# Get value from text field
+				text = mc.textFieldButtonGrp(self.selectMesh_TFBG, q=1, text=1)
+				if text:
+					# Format valid input to string of objects
+					objects = formatString_to_list(text)
+
+					for obj in objects:
+
+						if self.isValid(obj, action = 'save'):
+							geometry.append(obj)
+
+						else:
+							print('Skipping...')
+				else:
+					print('Please enter a value for selected meshes.')
+
+
+			elif option == 'allMeshes':
+				geometry = self.getAllSkinnedMeshes()
+
+			return geometry
+
+		if action == 'load':
+
+			if option == 'selectedMeshes':
+				geometry = []
+				# Get value from text field
+				text = mc.textFieldButtonGrp(self.selectMesh_TFBG, q=1, text=1)
+				# Format valid input to string of objects
+				objects = formatString_to_list(text)
+
+				for obj in objects:
+
+					if self.isValid(obj, action = 'load'):
+						geometry.append(obj)
+
+					else:
+						print('Skipping...')
+
+
+			elif option == 'allMeshes':
+				geometry = self.getAllMeshes()
+
+			return geometry
 
 
 
-	def getCharacterName(self, *args):
 
-		# Get character name from input field (if any)
-		characterName = mc.textFieldButtonGrp(self.charName_TFBG, q=True, text=True)
 
 	def saveSkinWeights(self, *args):
 
 		# Get file name from input field
 		filepath = mc.textFieldButtonGrp(self.filepath_TFBG, q=True, text=True)
 
-		for obj in self.geoList:
+		geometry = self.getGeometry(action = 'save')
+		if not geometry:
+			return
+
+		print('Attempting to export weights for: {}'.format(geometry))
+
+		# if filepath doesnt exist throw error
+		if not os.path.isdir(filepath):
+			raise Exception("Path: \"{}\" does not exist. Please enter a valid directory.".format(filepath))
+
+		for obj in geometry:
+
 			wtFile = os.path.join(filepath, obj + self.swExt)
 			sdw = deformerWeightsPlus.SkinDeformerWeights()
-			sdw.saveWeightInfo(fpath = wtFile, meshes = [obj])
+
+			try:
+				sdw.saveWeightInfo(fpath = wtFile, meshes = [obj])
+			except:
+				print('Cannot export weights for: {}. Skipping...'.format(obj))
 
 
 	def loadSkinWeights(self, *args):
 
 		"""
 		    load skin weights for character geometry objects
-		    """
+		"""
 
 		# weight folders
 		wtDir = mc.textFieldButtonGrp(self.filepath_TFBG, q=True, text=True)
-		#wtDir = os.path.join(project.mainProjectPath, characterName, skinWeightsDir)
 		wtFiles = os.listdir(wtDir)
 
-		print('wtDir is: ' + wtDir)
-		print(wtFiles)
+		# get geometry to load weights onto
+		geometry = self.getGeometry(action = 'load')
+		if not geometry:
+			return
 
 		# load skin weights
 
 		for wtFile in wtFiles:
 
-			print(wtFile)
 			extRes = os.path.splitext(wtFile)
-			print(extRes)
 
 			# check extension format
 			if not extRes:
@@ -288,7 +347,7 @@ class deformerWeightsPlusUI():
 				continue
 
 			# check geometry list
-			if self.geoList and not extRes[0] in self.geoList:
+			if geometry and not extRes[0] in geometry:
 				continue
 
 			# check if object exists
@@ -296,6 +355,7 @@ class deformerWeightsPlusUI():
 				continue
 
 			fullpathWtFile = os.path.join(wtDir, wtFile)
+			print("Loading: /'{}/' ...".format(fullpathWtFile))
 			sdw = deformerWeightsPlus.SkinDeformerWeights(path=fullpathWtFile)
 			sdw.applyWeightInfo()
 
@@ -306,12 +366,11 @@ class deformerWeightsPlusUI():
 		# "Selected mesh" option
 		if state == 0:
 			mc.textFieldButtonGrp(self.selectMesh_TFBG, edit  = 1, enableButton = 1, editable = 1 )
-			self.setSelectedMeshes()
 
 		# "All meshes" option
 		elif state == 1:
 			mc.textFieldButtonGrp(self.selectMesh_TFBG, edit = 1, enableButton = 0, editable = 0)
-			self.setAllSkinnedMeshes()
+
 
 
 
@@ -326,32 +385,6 @@ class deformerWeightsPlusUI():
 
 		folder = mc.fileDialog2(fileMode = 3, dialogStyle = 2, okCaption = 'Set')[0]
 		mc.textFieldButtonGrp(self.filepath_TFBG, edit=1, text = folder)
-
-
-
-	def getSelectedObject(self):
-		'''
-		Get selection from maya. Throw error if no object is selected, if more than one object is selected, 
-		or if selected object is not transformable.
-
-		@return: maya object name 
-		'''
-
-		# Get selected object
-		selected = mc.ls(sl=1)
-
-		if not selected:
-			raise Exception("No object selected. Please select an object.")
-		if len(selected) > 1:
-			raise Exception("More than one object selected. Please select only one object.")
-
-		if not mc.objectType(selected, isType = 'transform'):
-			raise Exception("Invalid selection. Please select a transform object.")
-		
-
-		return selected[0]
-
-
 
 
 def formatList_to_string(list):

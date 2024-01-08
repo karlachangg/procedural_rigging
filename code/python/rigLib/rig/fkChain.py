@@ -14,8 +14,10 @@ def build(
         joints,
         rigScale = 1.0,
         fkParenting = True,
+        parent = '',
         shape = 'circle',
-        lockChannels = ['s', 'v']
+        lockChannels = ['s', 'v'],
+        offsets = ['null']
         ):
 
     """
@@ -31,8 +33,8 @@ def build(
     jointConstraints = []
     for jnt in joints:
 
-        ctr = control.Control(prefix = name.removeSuffix(jnt), translateTo = jnt, rotateTo = jnt,
-                              scale = rigScale, shape = shape, lockChannels = lockChannels )
+        ctr = control.Control(prefix = name.removeSuffix(jnt), translateTo = jnt, rotateTo = jnt, parent = parent,
+                              scale = rigScale, shape = shape, lockChannels = lockChannels, offsets = offsets)
         constraint = mc.parentConstraint(ctr.C, jnt, mo = 0)[0]
         chainControls.append(ctr)
         jointConstraints.append(constraint)
@@ -47,4 +49,4 @@ def build(
             mc.parent(chainControls[i].Off, chainControls[i-1].C )
 
 
-    return { 'controls': chainControls, 'constraints': jointConstraints }
+    return { 'controls': chainControls, 'constraints': jointConstraints , 'topControl': chainControls[0] }

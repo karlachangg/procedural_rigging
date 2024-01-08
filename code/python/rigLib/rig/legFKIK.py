@@ -14,8 +14,11 @@ class Leg():
 
     def __init__(self,
             legJoints,
-            toeJoint,
+            toeJoints,
             hipPivotJoint,
+            heelLoc,
+            innerLoc,
+            outerLoc,
             prefix = 'leg',
             side = 'l',
             rigScale = 1.0,
@@ -23,22 +26,30 @@ class Leg():
             ):
         """
         :param legJoints: list(str), hip - knee - ankle
-        :param toeJoint: str, toe joint
+        :param toeJoints: list(str), toe - toeEnd
         :param hipPivotJoint: str, hip position joint
+        :param heelLoc: str, heel position locator
         :param prefix: str, prefix to name new objects
         :param rigScale: float, scale factor for size of controls
         :param baseRig: instance of base.module.Base class
         :return: dictionary with rig module objects
         """
         self.legJoints = []
+        self.toeJoints = []
 
         for jnt in legJoints:
             newJnt = side + '_' + jnt
             self.legJoints.append(newJnt)
 
+        for jnt in toeJoints:
+            newJnt = side + '_' + jnt
+            self.toeJoints.append(newJnt)
 
-        self.toeJoint = side + '_' + toeJoint
+
         self.hipPivotJoint = side + '_' + hipPivotJoint
+        self.heelLoc = side + '_' + heelLoc
+        self.innerLoc = side + '_' + innerLoc
+        self.outerLoc = side + '_' + outerLoc
         self.prefix = side + '_' + prefix
         self.side = side
         self.rigScale = rigScale
@@ -70,10 +81,13 @@ class Leg():
 
         pointConstraints = []
         orientConstraints = []
+        wholeLeg_Joints = []
+        wholeLeg_Joints.extend(self.legJoints)
+        wholeLeg_Joints.extend(self.toeJoints)
 
-        for i in range(len(self.legJoints)):
-            pConstraint = mc.pointConstraint( fkRig['joints'][i], ikRig['joints'][i], self.legJoints[i], mo=0)[0]
-            oConstraint = mc.orientConstraint(fkRig['joints'][i], ikRig['joints'][i], self.legJoints[i], mo=0)[0]
+        for i in range(len(wholeLeg_Joints)):
+            pConstraint = mc.pointConstraint( fkRig['joints'][i], ikRig['joints'][i], wholeLeg_Joints[i], mo=0)[0]
+            oConstraint = mc.orientConstraint(fkRig['joints'][i], ikRig['joints'][i],wholeLeg_Joints[i], mo=0)[0]
             mc.setAttr('{}.interpType'.format(oConstraint), 2)
             pointConstraints.append(pConstraint)
             orientConstraints.append(oConstraint)
@@ -89,7 +103,7 @@ class Leg():
 
         # Make switch control
 
-        switchCtr = control.Control(prefix='{}_FKIK'.format(self.prefix), translateTo= self.legJoints[1],
+        switchCtr = control.Control(prefix='{}_FKIK'.format(self.prefix), translateTo= wholeLeg_Joints[1],
                                  scale=self.rigScale * 0.5, parent=self.rigmodule.controlsGrp, shape='sphere')
         switch_attr = 'FKIK_Switch'
         mc.addAttr(switchCtr.C, ln = switch_attr, at= 'double', min = 0, max = 1, dv = 0, k = 1)
@@ -127,7 +141,8 @@ class Leg():
         elif self.side == 'r':
             mc.move(-5, switchCtr.Off, x=True, os=1)
 
-
+        # Set initial state
+        mc.setAttr('{}.{}'.format(switchCtr.C, switch_attr), 1 )
 
 
 
@@ -141,7 +156,10 @@ class Leg():
 
         # duplicate leg joints to make FK joints
         fkJoints = joint.duplicateChain(self.legJoints, 'jnt', 'FK_jnt')
+        fk_toeJoints = joint.duplicateChain(self.toeJoints, 'jnt', 'FK_jnt')
         mc.parent(fkJoints[0], self.rigmodule.jointsGrp)
+        mc.parent(fk_toeJoints[0], fkJoints[-1] )
+        fkJoints.extend(fk_toeJoints)
 
         # make controls
 
@@ -151,13 +169,18 @@ class Leg():
                                   scale = self.rigScale, parent = hipCtr.C, shape = 'circleX')
         footCtr = control.Control(prefix = '{}_foot'.format(self.prefix), translateTo = fkJoints[2], rotateTo = fkJoints[2],
                                         scale = self.rigScale, parent = kneeCtr.C, shape = 'circleY')
-        controls = [hipCtr, kneeCtr, footCtr]
+
+        toeCtr = control.Control(prefix='{}_toeFK'.format(self.side), translateTo = fk_toeJoints[0], rotateTo=fk_toeJoints[0],
+                                 scale=self.rigScale * 0.5, shape='circleX', parent = footCtr.C)
+
+        controls = [hipCtr, kneeCtr, footCtr, toeCtr]
 
         # connect controls
 
         mc.parentConstraint(hipCtr.C, fkJoints[0], mo = 0 )
         mc.parentConstraint(kneeCtr.C, fkJoints[1], mo=0)
         mc.parentConstraint(footCtr.C, fkJoints[2], mo=0)
+        mc.parentConstraint(toeCtr.C, fk_toeJoints[0], mo=0)
 
         # attach to hip pivot
         constraint = mc.pointConstraint(self.hipPivotJoint, hipCtr.Off, mo=1)[0]
@@ -173,11 +196,14 @@ class Leg():
 
 
 
-    def buildIK(self):
+    def buildIK(self, buildFoot = True):
 
         # duplicate leg joints to make IK joints
         ikJoints = joint.duplicateChain(self.legJoints, 'jnt', 'IK_jnt')
+        ik_toeJoints = joint.duplicateChain(self.toeJoints, 'jnt', 'IK_jnt')
         mc.parent(ikJoints[0], self.rigmodule.jointsGrp)
+        mc.parent(ik_toeJoints[0], ikJoints[-1])
+        ikJoints.extend(ik_toeJoints)
 
 
 
@@ -212,8 +238,8 @@ class Leg():
 
 
         mc.pointConstraint(ikJoints[0], poleAimLeg, mo = 0)
-        mc.aimConstraint(legCtr.C, poleAimLeg, aimVector = (1,0,0), upVector = (0,0,1),
-                         worldUpType = 'objectRotation', worldUpVector = (0, 0, 1), worldUpObject = upVector,  mo=0)
+        poleAimConstraint = mc.aimConstraint(legCtr.C, poleAimLeg, aimVector = (1,0,0), upVector = (0,0,1),
+                         worldUpType = 'objectRotation', worldUpVector = (0, 0, 1), worldUpObject = upVector,  mo=0)[0]
 
         poleOffsetFollow_noScale = mc.group(n = '{}_poleOffsetFollow_noScale'.format(self.prefix), em = 1)
         mc.pointConstraint(poleAimLeg, poleOffsetFollow_noScale , mo=0)
@@ -238,7 +264,9 @@ class Leg():
         mc.parent(pv_constraint, self.rigmodule.noXformGrp)
 
         # attach objects to controls
-        mc.parentConstraint(legCtr.C, legIK)
+        if buildFoot == False:
+            mc.parentConstraint(legCtr.C, legIK)
+
         mc.poleVectorConstraint(poleVectorCtr.C, legIK)
         mc.orientConstraint(legCtr.C, ikJoints[2], mo = 1)
 
@@ -246,6 +274,13 @@ class Leg():
         constraint = mc.pointConstraint(self.hipPivotJoint, ikJoints[0], mo = 1 )[0]
         constraintGrp = mc.group(constraint, n='{}_ik_constraintGrp'.format(self.prefix))
         mc.parent(constraintGrp, self.baseRig.noXformGrp)
+
+
+        # Add Leg swivel attribute
+
+        spin_attr = 'Spin'
+        mc.addAttr(legCtr.C, ln = spin_attr, at='double', dv=0, k=1)
+        mc.connectAttr('{}.{}'.format(legCtr.C, spin_attr), '{}.offsetX'.format(poleAimConstraint))
 
         # make pole vector connection line
 
@@ -281,7 +316,7 @@ class Leg():
         followLegIK = mc.group(n='{}_IKLegFollow'.format(self.prefix), em=1)
         mc.delete(mc.parentConstraint(legCtr.C, followLegIK, mo=0))
         mc.parent(followLegIK, legCtr.C)
-        # point constrain wrist group to group under ik arm ctr
+        # parent constrain followFoot group to group under ik leg ctr
         mc.parentConstraint(followLegIK, followFoot, mo=0)
         mc.parent(followFoot, self.rigmodule.partsGrp)
 
@@ -413,7 +448,7 @@ class Leg():
 
 
 
-        # make elbow pin to pv setup
+        # make knee pin to pv setup
         pv_pin_attr = 'Pin'
         mc.addAttr(poleVectorCtr.C, ln=pv_pin_attr, at='double', min=0, max=1, dv=0, k=1)
 
@@ -481,13 +516,6 @@ class Leg():
             mc.connectAttr('{}.outputX'.format(lowerLeg_negateOutput), '{}.input[1]'.format(blenderPinLower))
 
 
-
-
-
-
-
-
-
         # connect blender outputs to ik joints' translate X
         mc.connectAttr('{}.output'.format(blenderPinUpper), '{}.tx'.format(ikJoints[1]))
         mc.connectAttr('{}.output'.format(blenderPinLower), '{}.tx'.format(ikJoints[2]))
@@ -496,6 +524,21 @@ class Leg():
         mc.setAttr('{}.{}'.format(poleVectorCtr.C, pv_pin_attr), 0)
 
 
+        ik_footJoints = [ikJoints[2], ik_toeJoints[0], ik_toeJoints[1] ]
+
+        if buildFoot == True:
+
+            footRig = self.buildReverseFoot(heel_loc = self.heelLoc,
+                                  inner_loc = self.innerLoc,
+                                  outer_loc = self.outerLoc,
+                                  footJoints = ik_footJoints,
+                                  leg_IKH= legIK,
+                                  footCtr= legCtr,
+                                  measureLeg_end_node = followLegIK
+                                  )
+
+            footControls = footRig['controls']
+            controls.extend(footControls)
 
 
 
@@ -504,4 +547,237 @@ class Leg():
 
 
 
+    def buildReverseFoot(self, heel_loc, inner_loc, outer_loc, footJoints, leg_IKH, footCtr, measureLeg_end_node ):
 
+        # Create control at the ball of the foot
+        ballCtr = control.Control(prefix='{}_footRoll'.format(self.side), translateTo = footJoints[1],
+                                  scale=self.rigScale * 0.5, shape='circleX')
+
+        # Create control at the end of the foot (toe)
+
+        toeEndCtr = control.Control(prefix='{}_toeRoll'.format(self.side), translateTo=footJoints[2],
+                                  scale=self.rigScale * 0.25, shape='circleX')
+
+        toeCtr = control.Control(prefix='{}_toe'.format(self.side), translateTo=footJoints[1], rotateTo= footJoints[1],
+                                  scale=self.rigScale * 0.5, shape='circleX')
+
+        # Create control at the heel of the foot
+
+        heelCtr = control.Control(prefix='{}_heelRoll'.format(self.side), translateTo = heel_loc,
+                                    scale=self.rigScale * 0.3, shape='circleX')
+
+        controls = [ballCtr, toeEndCtr, toeCtr, heelCtr]
+
+        mc.parent(heel_loc, heelCtr.C)
+        mc.hide(heel_loc)
+
+        innerPivot_Grp = inner_loc.replace('loc', 'grp')
+        outerPivot_Grp = outer_loc.replace('loc', 'grp')
+
+        mc.group(em = 1, n = innerPivot_Grp)
+        mc.group(em=1, n = outerPivot_Grp)
+
+        mc.hide(inner_loc)
+        mc.hide(outer_loc)
+
+        mc.delete(mc.parentConstraint(inner_loc, innerPivot_Grp, mo = 0))
+        mc.delete(mc.parentConstraint(outer_loc, outerPivot_Grp, mo=0))
+
+        mc.parent(inner_loc, innerPivot_Grp)
+        mc.parent(outer_loc, outerPivot_Grp)
+
+        # Create IK single chain solver from the ankle to the ball of the foot
+        ball_IKH = mc.ikHandle(n='{}_ball_ikh'.format(self.prefix), sol='ikSCsolver', sj=footJoints[0], ee=footJoints[1])[0]
+        mc.hide(ball_IKH)
+
+        # Create IK single chain solver from the ball of the foot to the toe
+        toe_IKH = mc.ikHandle(n='{}_toe_ikh'.format(self.prefix), sol='ikSCsolver', sj=footJoints[1], ee=footJoints[2])[0]
+        mc.hide(toe_IKH)
+
+        # Parent IK handles to controls
+        mc.parent(ball_IKH, ballCtr.C)
+        mc.parent( toe_IKH, toeCtr.C)
+        mc.parent( leg_IKH, ballCtr.C)
+
+        # Set up parenting structure
+        mc.parent(ballCtr.Off, toeEndCtr.C)
+        mc.parent(toeCtr.Off, toeEndCtr.C)
+        mc.parent(toeEndCtr.Off, heelCtr.C)
+        mc.parent(heelCtr.Off, outerPivot_Grp)
+        mc.parent(outerPivot_Grp, innerPivot_Grp)
+        mc.parent(innerPivot_Grp, footCtr.C)
+        # parent the node we use to measure the leg length to the ball control. Because this will give us a more accurate reading
+        mc.parent(measureLeg_end_node, ballCtr.C)
+
+        # Set up Roll
+        roll_attr = 'Roll'
+        mc.addAttr(footCtr.C, ln = roll_attr, at= 'double', dv = 0, k = 1)
+
+        ball_angle_attr = 'Ball_Roll_Angle'
+        mc.addAttr(footCtr.C, ln = ball_angle_attr, at='double', dv=0, k=1)
+        mc.setAttr('{}.{}'.format(footCtr.C, ball_angle_attr), 45)
+
+        toe_angle_attr = 'Toe_Roll_Angle'
+        mc.addAttr(footCtr.C, ln = toe_angle_attr, at='double', dv=0, k=1)
+        mc.setAttr('{}.{}'.format(footCtr.C, toe_angle_attr), 60)
+
+        # Connect heel pivot
+        heelRoll_clamp = mc.shadingNode('clamp', asUtility=True,
+                                               n='{}_heelRoll_clamp'.format(self.prefix))
+
+        mc.connectAttr('{}.{}'.format(footCtr.C, roll_attr), '{}.inputR'.format(heelRoll_clamp))
+        mc.setAttr( '{}.minR'.format(heelRoll_clamp), -90)
+        mc.setAttr('{}.maxR'.format(heelRoll_clamp), 0)
+
+        mc.connectAttr('{}.outputR'.format(heelRoll_clamp), '{}.rotateX'.format(heelCtr.Off))
+
+
+        # Connect toe pivot
+        toeRoll_clamp = mc.shadingNode('clamp', asUtility=True,
+                                         n='{}_toeRoll_clamp'.format(self.prefix))
+
+
+        toeRoll_setRange = mc.shadingNode('setRange', asUtility=True,
+                                         n='{}_toeRoll_setRange'.format(self.prefix))
+
+        toeRoll_mult_percent = mc.shadingNode('multiplyDivide', asUtility=True,
+                                         n='{}_toeRoll_mult_percent'.format(self.prefix))
+
+        # Roll value goes into our clamp input
+        mc.connectAttr('{}.{}'.format(footCtr.C, roll_attr), '{}.inputR'.format(toeRoll_clamp))
+        # Ball angle attr goes into our clamp minimum
+        mc.connectAttr('{}.{}'.format(footCtr.C, ball_angle_attr), '{}.minR'.format(toeRoll_clamp))
+        # Toe angle attr goes into our clamp maximum
+        mc.connectAttr('{}.{}'.format(footCtr.C, toe_angle_attr), '{}.maxR'.format(toeRoll_clamp))
+
+        # Remap our clamped values from zero to one
+        mc.connectAttr('{}.minR'.format(toeRoll_clamp), '{}.oldMinX'.format(toeRoll_setRange))
+        mc.connectAttr('{}.maxR'.format(toeRoll_clamp), '{}.oldMaxX'.format(toeRoll_setRange))
+        mc.setAttr('{}.minX'.format(toeRoll_setRange), 0)
+        mc.setAttr('{}.maxX'.format(toeRoll_setRange), 1)
+        mc.connectAttr('{}.inputR'.format(toeRoll_clamp), '{}.valueX'.format(toeRoll_setRange))
+
+        # Multiply the remapped value (percentage of roll between our ball and toe angles) by Roll amount
+        mc.connectAttr('{}.outValueX'.format(toeRoll_setRange), '{}.input1X'.format(toeRoll_mult_percent))
+        mc.connectAttr('{}.inputR'.format(toeRoll_clamp), '{}.input2X'.format(toeRoll_mult_percent))
+        mc.setAttr('{}.operation'.format(toeRoll_mult_percent), 1)
+
+        # Feed the out value of our multiply node to toe_loc rotateX
+        mc.connectAttr('{}.outputX'.format(toeRoll_mult_percent), '{}.rotateX'.format(toeEndCtr.Off))
+
+        # Connect ball pivot
+        ballRoll_clamp = mc.shadingNode('clamp', asUtility=True,
+                                       n='{}_ballRoll_clamp'.format(self.prefix))
+
+        ballRoll_setRange = mc.shadingNode('setRange', asUtility=True,
+                                          n='{}_ballRoll_setRange'.format(self.prefix))
+
+        toeRoll_reverse = mc.shadingNode('reverse', asUtility=True,
+                                          n='{}_toeRoll_reverse'.format(self.prefix))
+
+        ballRoll_combine_percentages = mc.shadingNode('multiplyDivide', asUtility=True,
+                                               n='{}_ballRoll_combine_percentages'.format(self.prefix))
+
+        ballRoll_mult_percent = mc.shadingNode('multiplyDivide', asUtility=True,
+                                              n='{}_ballRoll_mult_percent'.format(self.prefix))
+
+        # Roll value goes into our clamp input
+        mc.connectAttr('{}.{}'.format(footCtr.C, roll_attr), '{}.inputR'.format(ballRoll_clamp))
+        # Clamp minimum set to zero
+        mc.setAttr('{}.minR'.format(ballRoll_clamp), 0)
+        # Ball angle attr goes into our clamp maximum
+        mc.connectAttr('{}.{}'.format(footCtr.C, ball_angle_attr), '{}.maxR'.format(ballRoll_clamp))
+
+        # Remap our clamped values from zero to one
+        mc.connectAttr('{}.minR'.format(ballRoll_clamp), '{}.oldMinX'.format(ballRoll_setRange))
+        mc.connectAttr('{}.maxR'.format(ballRoll_clamp), '{}.oldMaxX'.format(ballRoll_setRange))
+        mc.setAttr('{}.minX'.format(ballRoll_setRange), 0)
+        mc.setAttr('{}.maxX'.format(ballRoll_setRange), 1)
+        mc.connectAttr('{}.inputR'.format(ballRoll_clamp), '{}.valueX'.format(ballRoll_setRange))
+
+        # Get the reciprocal of the toe range
+        mc.connectAttr('{}.outValueX'.format(toeRoll_setRange), '{}.inputX'.format(toeRoll_reverse))
+
+        # Multiply the range of the ball roll with the reciprocal range of the toe roll
+        mc.connectAttr('{}.outputX'.format(toeRoll_reverse), '{}.input1X'.format(ballRoll_combine_percentages))
+        mc.connectAttr('{}.outValueX'.format(ballRoll_setRange), '{}.input2X'.format(ballRoll_combine_percentages))
+        mc.setAttr('{}.operation'.format(ballRoll_combine_percentages), 1)
+
+        # Multiply the resulting percentage by the Roll amount
+        mc.connectAttr('{}.outputX'.format(ballRoll_combine_percentages), '{}.input1X'.format(ballRoll_mult_percent))
+        mc.connectAttr('{}.inputR'.format(ballRoll_clamp), '{}.input2X'.format(ballRoll_mult_percent))
+        mc.setAttr('{}.operation'.format(ballRoll_mult_percent), 1)
+
+        # Feed the out value of our multiply node to ballCtr rotateX
+        mc.connectAttr('{}.outputX'.format(ballRoll_mult_percent), '{}.rotateX'.format(ballCtr.Off))
+
+        # Set up rock
+        rock_attr = 'Rock'
+        mc.addAttr(footCtr.C, ln=rock_attr, at='double', dv=0, k=1)
+
+        if self.side == 'l':
+
+            # Set up SDK to rock outer pivot
+            mc.setDrivenKeyframe( '{}.rotateZ'.format(outerPivot_Grp),
+                                  currentDriver = '{}.{}'.format(footCtr.C, rock_attr) ,
+                                  driverValue = 0,
+                                  value = 0,
+                                  inTangentType = 'linear',
+                                  outTangentType = 'linear')
+
+            mc.setDrivenKeyframe('{}.rotateZ'.format(outerPivot_Grp),
+                                 currentDriver='{}.{}'.format(footCtr.C, rock_attr),
+                                 driverValue = 90,
+                                 value = -90,
+                                 inTangentType='linear',
+                                 outTangentType='linear')
+
+
+            # Set up SDK to rock inner pivot
+            mc.setDrivenKeyframe('{}.rotateZ'.format(innerPivot_Grp),
+                                 currentDriver='{}.{}'.format(footCtr.C, rock_attr),
+                                 driverValue=0,
+                                 value=0,
+                                 inTangentType='linear',
+                                 outTangentType='linear')
+
+            mc.setDrivenKeyframe('{}.rotateZ'.format(innerPivot_Grp),
+                                 currentDriver='{}.{}'.format(footCtr.C, rock_attr),
+                                 driverValue = -90,
+                                 value = 90,
+                                 inTangentType='linear',
+                                 outTangentType='linear')
+
+        elif self.side == 'r':
+
+            # Set up SDK to rock outer pivot
+            mc.setDrivenKeyframe('{}.rotateZ'.format(outerPivot_Grp),
+                                 currentDriver='{}.{}'.format(footCtr.C, rock_attr),
+                                 driverValue=0,
+                                 value=0,
+                                 inTangentType='linear',
+                                 outTangentType='linear')
+
+            mc.setDrivenKeyframe('{}.rotateZ'.format(outerPivot_Grp),
+                                 currentDriver='{}.{}'.format(footCtr.C, rock_attr),
+                                 driverValue=90,
+                                 value = 90,
+                                 inTangentType='linear',
+                                 outTangentType='linear')
+
+            # Set up SDK to rock inner pivot
+            mc.setDrivenKeyframe('{}.rotateZ'.format(innerPivot_Grp),
+                                 currentDriver='{}.{}'.format(footCtr.C, rock_attr),
+                                 driverValue=0,
+                                 value=0,
+                                 inTangentType='linear',
+                                 outTangentType='linear')
+
+            mc.setDrivenKeyframe('{}.rotateZ'.format(innerPivot_Grp),
+                                 currentDriver='{}.{}'.format(footCtr.C, rock_attr),
+                                 driverValue=-90,
+                                 value = - 90,
+                                 inTangentType='linear',
+                                 outTangentType='linear')
+
+        return {'controls': controls}

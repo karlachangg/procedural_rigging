@@ -8,7 +8,7 @@ import os
 from . import project
 from rigTools import deformerWeightsPlus
 
-skinWeightsDir = 'build/weights/skinClusters'
+#skinWeightsDir = 'build/weights/skinClusters'
 swExt = '.xml'
 
 def build( baseRig, characterName ):
@@ -45,7 +45,7 @@ def saveSkinWeights(characterName, geoList = []):
 
     for obj in geoList:
         # weights files
-        wtFile = os.path.join(project.mainProjectPath, characterName, skinWeightsDir, obj + swExt)
+        wtFile = os.path.join(project.mainProjectPath, characterName, project.skinWeightsDir, obj + swExt)
 
         # save skin weight file
         sdw = deformerWeightsPlus.SkinDeformerWeights()
@@ -57,7 +57,7 @@ def loadSkinWeights( characterName, geoList = []):
     """
 
     # weight folders
-    wtDir = os.path.join(project.mainProjectPath, characterName, skinWeightsDir)
+    wtDir = os.path.join(project.mainProjectPath, characterName, project.skinWeightsDir)
     wtFiles = os.listdir(wtDir)
 
     print('wtDir is: ' + wtDir)

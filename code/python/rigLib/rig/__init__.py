@@ -5,3 +5,4 @@ from . import leg
 from . import legFKIK
 from . import fkChain
 from . import armFKIK
+from . import hand

@@ -15,6 +15,7 @@ from rigLib.rig import neck
 from rigLib.rig import ikChain
 from rigLib.rig import legFKIK
 from rigLib.rig import armFKIK
+from rigLib.rig import hand
 
 from rigLib.utils import joint
 
@@ -75,13 +76,19 @@ class Biped(char.Character):
 
         # left leg
         legJoints = ['hip_jnt', 'knee_jnt', 'ankle_jnt']
-        toeJoint = 'toe_jnt'
+        toeJoints = ['toe_jnt', 'toe_end_jnt']
         hipPivotJoint = 'hip_piv_jnt'
+        heel_loc = 'heel_loc'
+        inner_loc = 'foot_inner_loc'
+        outer_loc = 'foot_outer_loc'
 
         leftLegRig = legFKIK.Leg(
             legJoints = legJoints,
-            toeJoint = toeJoint,
+            toeJoints = toeJoints,
             hipPivotJoint = hipPivotJoint,
+            heelLoc = heel_loc,
+            innerLoc = inner_loc,
+            outerLoc = outer_loc,
             prefix = 'leg',
             side = 'l',
             rigScale = self.sceneScale,
@@ -92,7 +99,10 @@ class Biped(char.Character):
 
         rightLegRig = legFKIK.Leg(
             legJoints = legJoints,
-            toeJoint = toeJoint,
+            toeJoints = toeJoints,
+            heelLoc=heel_loc,
+            innerLoc=inner_loc,
+            outerLoc=outer_loc,
             hipPivotJoint = hipPivotJoint,
             prefix = 'leg',
             side = 'r',
@@ -133,7 +143,41 @@ class Biped(char.Character):
         # attach right arm to spine
         mc.parentConstraint(spineRig.rigParts['chestAttachGrp'], rightArmRig.rigParts['bodyAttachGrp'], mo=1)
 
+        # Left hand
+        fingerJoints = ['finger_index_0_jnt', 'finger_middle_0_jnt', 'finger_ring_0_jnt', 'finger_pinky_0_jnt', 'thumb_0_jnt']
+        metaJoints = True
+        innerCupJoint = 'cup_inner_jnt'
+        outerCupJoint = 'cup_jnt'
 
+        leftHandRig = hand.Hand(
+            fingerBaseJoints = fingerJoints,
+            metaJoints = metaJoints,
+            innerCupJoint = innerCupJoint,
+            outerCupJoint = outerCupJoint,
+            includeFingerEnds = False,
+            handAttachGrp = leftArmRig.rigParts['handAttachGrp'],
+            prefix = 'hand',
+            side='l',
+            rigScale=self.sceneScale,
+            baseRig=baseRig
+        )
+        leftHandRig.build()
+
+        # Right hand
+
+        rightHandRig = hand.Hand(
+            fingerBaseJoints = fingerJoints,
+            metaJoints = metaJoints,
+            innerCupJoint = innerCupJoint,
+            outerCupJoint = outerCupJoint,
+            includeFingerEnds = False,
+            handAttachGrp = rightArmRig.rigParts['handAttachGrp'],
+            prefix = 'hand',
+            side = 'r',
+            rigScale = self.sceneScale,
+            baseRig = baseRig
+        )
+        rightHandRig.build()
 
 
 
