@@ -6,3 +6,4 @@ from . import legFKIK
 from . import fkChain
 from . import armFKIK
 from . import hand
+from . import bendyLimb

@@ -4,6 +4,8 @@ leg FK/IK @ rig
 
 import maya.cmds as mc
 
+from . import bendyLimb
+
 from ..base import module
 from ..base import control
 
@@ -22,7 +24,8 @@ class Leg():
             prefix = 'leg',
             side = 'l',
             rigScale = 1.0,
-            baseRig = None
+            baseRig = None,
+            bendy = True
             ):
         """
         :param legJoints: list(str), hip - knee - ankle
@@ -54,6 +57,7 @@ class Leg():
         self.side = side
         self.rigScale = rigScale
         self.baseRig = baseRig
+        self.bendy = bendy
 
         # make rig module
 
@@ -65,11 +69,6 @@ class Leg():
 
     def build(self):
 
-        # Add twist joints
-        kneeTwistJnt = joint.duplicateChain(self.legJoints[1], oldSuffix= 'jnt', newSuffix= 'twist_jnt')
-        ankleTwistJnt = joint.duplicateChain(self.legJoints[2], oldSuffix='jnt', newSuffix='twist_jnt')
-        mc.parent(kneeTwistJnt, self.legJoints[0] )
-        mc.parent(ankleTwistJnt, self.legJoints[1])
 
         # Make FK rig
         fkRig = self.buildFK()
@@ -91,14 +90,6 @@ class Leg():
             mc.setAttr('{}.interpType'.format(oConstraint), 2)
             pointConstraints.append(pConstraint)
             orientConstraints.append(oConstraint)
-
-        # orient constrain twist joints
-        kneeTwistConstr = mc.orientConstraint(fkRig['joints'][1], ikRig['joints'][1], kneeTwistJnt,  mo = 1, skip = ['y', 'z'] )[0]
-        ankleTwistConstr = mc.orientConstraint(fkRig['joints'][2], ikRig['joints'][2], ankleTwistJnt, mo=1, skip=['y', 'z'])[0]
-        mc.setAttr('{}.interpType'.format(kneeTwistConstr), 2)
-        mc.setAttr('{}.interpType'.format(ankleTwistConstr), 2)
-        orientConstraints.append(kneeTwistConstr)
-        orientConstraints.append(ankleTwistConstr)
 
 
         # Make switch control
@@ -144,13 +135,71 @@ class Leg():
         # Set initial state
         mc.setAttr('{}.{}'.format(switchCtr.C, switch_attr), 1 )
 
+        if self.bendy:
+            self.buildBendyLimbs()
+
+
+    def buildBendyLimbs(self):
+
+        # Insert the bendy joints to our deformation skeleton
+        '''upperLegJoints = joint.segmentJointchain(startJoint= self.legJoints[0],endJoint= self.legJoints[1], numberOfSegments = 4,
+                                prefix= '{}Bend'.format(self.prefix), aimAxis='x' )'''
+
+        if self.side == 'l':
+            aimAxis = 'x'
+            upAxis = 'z'
+        elif self.side == 'r':
+            aimAxis = '-x'
+            upAxis = '-z'
+
+        # Build the upper leg bendy rig
+        upperLegBendy = bendyLimb.BendyLimb(
+            startJoint=self.legJoints[0],
+            endJoint=self.legJoints[1],
+            numberOfBendyJoints=4,
+            numberOfBendyControls=3,
+            aimAxis= aimAxis,
+            upAxis= upAxis,
+            prefix= '{}_upperLeg'.format(self.side) ,
+            rigScale = self.rigScale,
+            baseRig=self.baseRig)
+        upperLegBendy.build()
+
+        # Build the upper leg bendy rig
+        lowerLegBendy = bendyLimb.BendyLimb(
+            startJoint=self.legJoints[1],
+            endJoint=self.legJoints[2],
+            numberOfBendyJoints=4,
+            numberOfBendyControls=3,
+            aimAxis=aimAxis,
+            upAxis=upAxis,
+            prefix='{}_lowerLeg'.format(self.side),
+            rigScale=self.rigScale,
+            baseRig=self.baseRig)
+
+        lowerLegBendy.build()
 
 
 
+        # Get the parent of the top leg joint
+        legParentJnt = mc.listRelatives(self.legJoints[0], p = 1)
 
+        # Move the result joints out of the hierarchy
+        mc.parent(self.legJoints[0], self.rigmodule.jointsGrp)
 
+        # Move the bendyjoints into the hierarchy
+        mc.parent(upperLegBendy.bendyJoints[0], legParentJnt)
 
+        # Move the lower leg bendy joints under the upperleg bendy joints
+        mc.parent(lowerLegBendy.bendyJoints[0], upperLegBendy.bendyJoints[-1] )
 
+        # Move the foot joint back
+        mc.parent(self.toeJoints[0], lowerLegBendy.bendyJoints[-1])
+
+        # Connect the bend joints from the bendy rig to the ones we inserted in our deformation skeleton
+        #mc.parentConstraint(upperLegBendy.bendyJoints[1], upperLegJoints[1], mo = 1 )
+        #mc.parentConstraint(upperLegBendy.bendyJoints[2], upperLegJoints[2], mo=1)
+        #mc.parentConstraint(upperLegBendy.bendyJoints[3], upperLegJoints[3], mo=1)
 
     def buildFK(self):
 

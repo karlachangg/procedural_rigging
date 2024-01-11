@@ -40,7 +40,7 @@ def jointOrient( Joints ):
 	mc.xform( r = 1, ro = ( -90, -90, 0) )
 	mc.makeIdentity( apply = 1,t = 0, r = 1, s = 0, n = 0, pn = 1)
 
-def duplicateChain( joints, oldSuffix = 'jnt', newSuffix = 'jnt1'):
+def duplicateChain( joints, oldSuffix = 'jnt', newSuffix = 'jnt1', prefix = ''):
 
 	# clear maya selection
 	mc.select(cl=1)
@@ -51,7 +51,9 @@ def duplicateChain( joints, oldSuffix = 'jnt', newSuffix = 'jnt1'):
 	newJoints = []
 
 	for jnt in joints:
-		newJoints.append(jnt.replace(oldSuffix, newSuffix))
+		name = jnt.replace(oldSuffix, newSuffix)
+		name = prefix + name
+		newJoints.append(name)
 
 
 	# make new joint chain
@@ -59,9 +61,12 @@ def duplicateChain( joints, oldSuffix = 'jnt', newSuffix = 'jnt1'):
 	for i in range(len(joints)):
 
 		jnt = mc.duplicate( joints[i], n = newJoints[i], po = 1, ic = 0, un = 0)
-
+		parent = mc.listRelatives(jnt, p = 1)
 		if i == 0:
-			mc.parent(jnt, world = 1)
+
+			if parent is not None:
+				mc.parent(jnt, world = 1)
+
 		else:
 			mc.parent(jnt, newJoints[i-1])
 
@@ -69,4 +74,52 @@ def duplicateChain( joints, oldSuffix = 'jnt', newSuffix = 'jnt1'):
 	mc.select(cl = 1)
 
 	return newJoints
+
+
+
+def segmentJointchain(startJoint, endJoint, numberOfSegments, prefix='', aimAxis='x'):
+
+	insertJoints = []
+	numberOfNewJoints = numberOfSegments - 1
+
+	for i in range(numberOfNewJoints):
+		name = '{}_{}_jnt'.format(prefix, i)
+		insertJoints.append(name)
+
+	wholeLength = mc.getAttr('{}.t{}'.format(endJoint, aimAxis))
+	segmentLength = wholeLength / numberOfSegments
+
+	if aimAxis == 'x':
+		newPosition = [segmentLength, 0, 0]
+
+	elif aimAxis == 'y':
+		newPosition = [0, segmentLength, 0]
+
+	elif aimAxis == 'z':
+		newPosition = [0, 0, segmentLength]
+
+	for i in range(numberOfNewJoints):
+
+		if i == 0:
+			jnt = mc.insertJoint(startJoint)
+			newJnt = insertJoints[i]
+			mc.rename(jnt, newJnt)
+			mc.joint(newJnt, e=1, position=newPosition, r=True, co=True)
+
+
+		else:
+
+			jnt = mc.insertJoint(insertJoints[i - 1])
+			newJnt = insertJoints[i]
+			mc.rename(jnt, newJnt)
+			mc.joint(newJnt, e=1, position=newPosition, r=True, co=True)
+
+
+	jointList = [startJoint]
+
+	for i in range(numberOfNewJoints):
+		jointList.append(insertJoints[i])
+	jointList.append(endJoint)
+
+	return jointList
 

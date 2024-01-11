@@ -3,7 +3,7 @@ arm FK/IK @ rig
 """
 
 import maya.cmds as mc
-
+from . import bendyLimb
 from ..base import module
 from ..base import control
 
@@ -17,8 +17,9 @@ class Arm():
             scapulaJoint,
             prefix = 'arm',
             side = 'l',
+            bendy = True,
             rigScale = 1.0,
-            baseRig = None
+            baseRig = None,
             ):
         """
         :param armJoints: list(str), shoulder - elbow - wrist
@@ -38,8 +39,10 @@ class Arm():
         self.scapulaJoint = side + '_' + scapulaJoint
         self.prefix = side + '_' + prefix
         self.side = side
+        self.bendy = bendy
         self.rigScale = rigScale
         self.baseRig = baseRig
+        self.bendy = bendy
 
         # make rig module
 
@@ -51,14 +54,6 @@ class Arm():
 
 
     def build(self):
-
-        # Add twist joints
-        elbowTwistJnt = joint.duplicateChain(self.armJoints[1], oldSuffix='jnt', newSuffix='twist_jnt')
-        wristTwistJnt = joint.duplicateChain(self.armJoints[2], oldSuffix='jnt', newSuffix='twist_jnt')
-        mc.parent(elbowTwistJnt, self.armJoints[0])
-        mc.parent(wristTwistJnt, self.armJoints[1])
-
-
 
         # Make FK rig
         fkRig = self.buildFK()
@@ -78,13 +73,6 @@ class Arm():
             pointConstraints.append(pConstraint)
             orientConstraints.append(oConstraint)
 
-        # orient constrain twist joints
-        elbowTwistConstr = mc.orientConstraint(fkRig['joints'][1], ikRig['joints'][1], elbowTwistJnt, mo=1, skip=['y', 'z'])[0]
-        wristTwistConstr = mc.orientConstraint(fkRig['joints'][2], ikRig['joints'][2], wristTwistJnt, mo=1, skip=['y', 'z'])[0]
-        mc.setAttr('{}.interpType'.format(elbowTwistConstr), 2)
-        mc.setAttr('{}.interpType'.format(wristTwistConstr), 2)
-        orientConstraints.append(elbowTwistConstr)
-        orientConstraints.append(wristTwistConstr)
 
         # Make switch control
 
@@ -146,16 +134,72 @@ class Arm():
         self.rigParts['bodyAttachGrp'] = scapRig['bodyAttach']
         self.rigParts['handAttachGrp'] = handAttachGrp
         
-        # Set default animation pose to T pose
+        # Set some class properties we can call later to set a T pose
+        self.fkControls = fkRig['controls']
+        self.pvControl = ikRig['controls'][1]
+        self.ikRotateGrp = ikRig['rotateGrp']
 
-        self.tPose(fkControls = fkRig['controls'],
-                   pvControl = ikRig['controls'][1],
-                   ikRotateGrp= ikRig['rotateGrp']
-                   )
+        if self.bendy:
+            self.buildBendyLimbs()
+
+    def buildBendyLimbs(self):
+
+        # Insert the bendy joints to our deformation skeleton
+
+        if self.side == 'l':
+            aimAxis = 'x'
+            upAxis = 'y'
+        elif self.side == 'r':
+            aimAxis = '-x'
+            upAxis = '-y'
+
+        # Build the upper leg bendy rig
+        upperArmBendy = bendyLimb.BendyLimb(
+            startJoint=self.armJoints[0],
+            endJoint=self.armJoints[1],
+            numberOfBendyJoints=4,
+            numberOfBendyControls=3,
+            aimAxis= aimAxis,
+            upAxis= upAxis,
+            prefix= '{}_upperArm'.format(self.side) ,
+            rigScale = self.rigScale,
+            baseRig=self.baseRig)
+        upperArmBendy.build()
+
+        # Build the upper leg bendy rig
+        lowerArmBendy = bendyLimb.BendyLimb(
+            startJoint=self.armJoints[1],
+            endJoint=self.armJoints[2],
+            numberOfBendyJoints=4,
+            numberOfBendyControls=3,
+            aimAxis=aimAxis,
+            upAxis=upAxis,
+            prefix='{}_lowerArm'.format(self.side),
+            rigScale=self.rigScale,
+            baseRig=self.baseRig)
+
+        lowerArmBendy.build()
 
 
 
+        # Get the parent of the top leg joint
+        armParentJnt = mc.listRelatives(self.armJoints[0], p = 1)
 
+        # Get the children of the wrist joint
+        wristChildren = mc.listRelatives(self.armJoints[2], c=1)
+
+        # Move the result joints out of the hierarchy
+        mc.parent(self.armJoints[0], self.rigmodule.jointsGrp)
+
+        # Move the bendyjoints into the hierarchy
+        mc.parent(upperArmBendy.bendyJoints[0], armParentJnt)
+
+        # Move the lower leg bendy joints under the upperleg bendy joints
+        mc.parent(lowerArmBendy.bendyJoints[0], upperArmBendy.bendyJoints[-1] )
+
+        # Move the hand joints back
+        for jnt in wristChildren:
+            mc.parent(jnt, lowerArmBendy.bendyJoints[-1])
 
     def buildFK(self):
 
@@ -540,7 +584,8 @@ class Arm():
                          worldUpType='objectRotation', worldUpVector=(0, 1, 0), worldUpObject=upVector, mo = 1)
 
         # connect scapula joint to control
-        mc.parentConstraint(scapCtr.C, self.scapulaJoint, mo = 1 )
+        constraint = mc.parentConstraint(scapCtr.C, self.scapulaJoint, mo = 1 )[0]
+        mc.parent(constraint, self.rigmodule.noXformGrp)
 
         # make locator to follow end of clavicle
         endPos = mc.spaceLocator( n = '{}_scapEnd_pos'.format(self.prefix) )
@@ -557,6 +602,10 @@ class Arm():
         mc.parentConstraint(bodyAttachGrp, scapAimCtr.Off, mo=1)
 
         return {'armAttach': endPos, 'bodyAttach': bodyAttachGrp}
+
+    def setTpose(self):
+
+        self.tPose(self.fkControls, self.pvControl, self.ikRotateGrp)
 
     def tPose(self, fkControls, pvControl, ikRotateGrp):
         '''

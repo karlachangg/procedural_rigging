@@ -87,6 +87,8 @@ class Hand():
         pinkyFingerJoints = joint.listHierarchy(pinkyBaseJoint, withEndJoints=False)
         thumbFingerJoints = joint.listHierarchy(thumbBaseJoint, withEndJoints=False)
 
+        jointConstraints = []
+
         # Create cup controls
         innerCupCtr = control.Control(prefix='{}_cupInner'.format(self.side), translateTo= self.innerCupJoint,
                                       rotateTo=self.innerCupJoint, offsets=['null', 'zero', 'auto'],
@@ -96,8 +98,10 @@ class Hand():
                                       rotateTo=self.outerCupJoint, offsets=['null', 'zero', 'auto'],
                                       scale=self.rigScale * 0.25, parent=handGrp, shape='circleX')
 
-        mc.parentConstraint(innerCupCtr.C, self.innerCupJoint, mo = 1)
-        mc.parentConstraint(outerCupCtr.C, self.outerCupJoint, mo=1)
+        innerCupConstraint = mc.parentConstraint(innerCupCtr.C, self.innerCupJoint, mo = 1)[0]
+        outerCupConstraint = mc.parentConstraint(outerCupCtr.C, self.outerCupJoint, mo=1)[0]
+        jointConstraints.append(innerCupConstraint)
+        jointConstraints.append(outerCupConstraint)
 
         # Create finger controls
 
@@ -107,7 +111,8 @@ class Hand():
             indexMetaCtr = control.Control(prefix='{}_indexMeta'.format(self.side),
                                           translateTo = indexFingerJoints[0], rotateTo = indexFingerJoints[0],
                                           scale=self.rigScale * 0.2, parent = handGrp, shape='circleX')
-            mc.parentConstraint(indexMetaCtr.C, indexFingerJoints[0], mo = 1)
+            constraint = mc.parentConstraint(indexMetaCtr.C, indexFingerJoints[0], mo = 1)[0]
+            jointConstraints.append(constraint)
 
             indexFingerRig = fkChain.build(indexFingerJoints[1:], rigScale=self.rigScale * 0.2, parent = indexMetaCtr.C,
                                       offsets=['null', 'zero', 'auto'])
@@ -118,7 +123,8 @@ class Hand():
                                            translateTo = middleFingerJoints[0], rotateTo = middleFingerJoints[0],
                                            scale=self.rigScale * 0.2, parent=handGrp, shape='circleX')
 
-            mc.parentConstraint(middleMetaCtr.C, middleFingerJoints[0], mo=1)
+            constraint = mc.parentConstraint(middleMetaCtr.C, middleFingerJoints[0], mo=1)[0]
+            jointConstraints.append(constraint)
 
             middleFingerRig = fkChain.build(middleFingerJoints[1:], rigScale=self.rigScale * 0.2, parent = middleMetaCtr.C,
                                      offsets=['null', 'zero', 'auto'])
@@ -129,7 +135,8 @@ class Hand():
                                             translateTo = ringFingerJoints[0], rotateTo = ringFingerJoints[0],
                                             scale=self.rigScale * 0.2, parent = outerCupCtr.C, shape='circleX')
 
-            mc.parentConstraint(ringMetaCtr.C, ringFingerJoints[0], mo=1)
+            constraint = mc.parentConstraint(ringMetaCtr.C, ringFingerJoints[0], mo=1)[0]
+            jointConstraints.append(constraint)
 
             ringFingerRig = fkChain.build(ringFingerJoints[1:], rigScale=self.rigScale * 0.2, parent = ringMetaCtr.C,
                                       offsets=['null', 'zero', 'auto'])
@@ -140,7 +147,8 @@ class Hand():
                                           translateTo=pinkyFingerJoints[0], rotateTo=pinkyFingerJoints[0],
                                           scale=self.rigScale * 0.2, parent=outerCupCtr.C, shape='circleX')
 
-            mc.parentConstraint(pinkyMetaCtr.C, pinkyFingerJoints[0], mo=1)
+            constraint = mc.parentConstraint(pinkyMetaCtr.C, pinkyFingerJoints[0], mo=1)[0]
+            jointConstraints.append(constraint)
 
             pinkyFingerRig = fkChain.build(pinkyFingerJoints[1:], rigScale=self.rigScale * 0.2, parent=pinkyMetaCtr.C,
                                           offsets=['null', 'zero', 'auto'])
@@ -183,6 +191,17 @@ class Hand():
 
         elif self.side == 'r':
             mc.move(-3, handCtr.Off, x=True, os=1, r=1, wd=1)
+
+        # Move constraints on joints
+        constraintGroup = mc.group(em = 1, n = '{}_constraintGrp'.format(self.prefix) )
+        mc.parent(constraintGroup, self.rigmodule.noXformGrp)
+        mc.parent(indexFingerRig['constraints'], constraintGroup )
+        mc.parent(middleFingerRig['constraints'], constraintGroup)
+        mc.parent(ringFingerRig['constraints'], constraintGroup)
+        mc.parent(pinkyFingerRig['constraints'], constraintGroup)
+        mc.parent(thumbRig['constraints'], constraintGroup)
+        mc.parent(jointConstraints, constraintGroup)
+
 
         # Special attributes
 

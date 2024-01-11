@@ -16,6 +16,7 @@ from rigLib.rig import ikChain
 from rigLib.rig import legFKIK
 from rigLib.rig import armFKIK
 from rigLib.rig import hand
+from rigLib.rig import bendyLimb
 
 from rigLib.utils import joint
 
@@ -30,9 +31,9 @@ class Biped(char.Character):
     def build(self):
 
         self.setup()
-        self.deform()
         self.makeControlSetup(self.baseRig)
-
+        self.deform()
+        self.setInitialPose()
 
     def makeControlSetup(self, baseRig):
         """
@@ -92,6 +93,7 @@ class Biped(char.Character):
             prefix = 'leg',
             side = 'l',
             rigScale = self.sceneScale,
+            bendy= True,
             baseRig = baseRig
             )
 
@@ -107,6 +109,7 @@ class Biped(char.Character):
             prefix = 'leg',
             side = 'r',
             rigScale = self.sceneScale,
+            bendy = True,
             baseRig = baseRig
             )
 
@@ -116,32 +119,34 @@ class Biped(char.Character):
         armJoints = ['shoulder_jnt', 'elbow_jnt', 'wrist_jnt']
         scapulaJnt = 'clavicle_jnt'
 
-        leftArmRig = armFKIK.Arm(
+        self.leftArmRig = armFKIK.Arm(
             armJoints = armJoints,
             scapulaJoint = scapulaJnt,
             prefix = 'arm',
             side = 'l',
+            bendy = True,
             rigScale = self.sceneScale,
             baseRig = baseRig
             )
 
-        leftArmRig.build()
+        self.leftArmRig.build()
 
         # attach left arm to spine
-        mc.parentConstraint(spineRig.rigParts['chestAttachGrp'], leftArmRig.rigParts['bodyAttachGrp'], mo=1)
+        mc.parentConstraint(spineRig.rigParts['chestAttachGrp'], self.leftArmRig.rigParts['bodyAttachGrp'], mo=1)
 
-        rightArmRig = armFKIK.Arm(
+        self.rightArmRig = armFKIK.Arm(
             armJoints = armJoints,
             scapulaJoint = scapulaJnt,
             prefix = 'arm',
             side = 'r',
+            bendy = True,
             rigScale = self.sceneScale,
             baseRig = baseRig
             )
-        rightArmRig.build()
+        self.rightArmRig.build()
 
         # attach right arm to spine
-        mc.parentConstraint(spineRig.rigParts['chestAttachGrp'], rightArmRig.rigParts['bodyAttachGrp'], mo=1)
+        mc.parentConstraint(spineRig.rigParts['chestAttachGrp'], self.rightArmRig.rigParts['bodyAttachGrp'], mo=1)
 
         # Left hand
         fingerJoints = ['finger_index_0_jnt', 'finger_middle_0_jnt', 'finger_ring_0_jnt', 'finger_pinky_0_jnt', 'thumb_0_jnt']
@@ -155,7 +160,7 @@ class Biped(char.Character):
             innerCupJoint = innerCupJoint,
             outerCupJoint = outerCupJoint,
             includeFingerEnds = False,
-            handAttachGrp = leftArmRig.rigParts['handAttachGrp'],
+            handAttachGrp = self.leftArmRig.rigParts['handAttachGrp'],
             prefix = 'hand',
             side='l',
             rigScale=self.sceneScale,
@@ -171,7 +176,7 @@ class Biped(char.Character):
             innerCupJoint = innerCupJoint,
             outerCupJoint = outerCupJoint,
             includeFingerEnds = False,
-            handAttachGrp = rightArmRig.rigParts['handAttachGrp'],
+            handAttachGrp = self.rightArmRig.rigParts['handAttachGrp'],
             prefix = 'hand',
             side = 'r',
             rigScale = self.sceneScale,
@@ -179,6 +184,11 @@ class Biped(char.Character):
         )
         rightHandRig.build()
 
+    def setInitialPose(self):
+
+        #  Set arms to a T pose
+        self.leftArmRig.setTpose()
+        self.rightArmRig.setTpose()
 
 
 
