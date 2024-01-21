@@ -103,12 +103,12 @@ class BendyLimb():
         midCtrConstraint = mc.orientConstraint(limbStartPos, bendMidCtr.Off, skip = self.aimAxis.replace('-', ''), mo=1)[0]
         mc.setAttr('{}.interpType'.format(midCtrConstraint), 2)
 
-        if self.aimAxis == 'x' or '-x':
+        if self.aimAxis == 'x' or self.aimAxis == '-x':
             skip = ['y', 'z']
 
-        elif self.aimAxis == 'y':
+        elif self.aimAxis == 'y' or self.aimAxis == '-y':
             skip = ['x', 'z']
-        elif self.aimAxis == 'z':
+        elif self.aimAxis == 'z' or self.aimAxis == '-z':
             skip = ['x', 'y']
 
         midCtrConstraint2 = mc.orientConstraint(limbStartPos, limbEndPos, bendMidCtr.Offsets[1], skip= skip, mo=0)[0]
@@ -285,13 +285,13 @@ def createPlaneFromCurve(curve, surfaceName, direction = 'x'):
     curve1 = mc.duplicate(curve)
     curve2 = mc.duplicate(curve)
 
-    if direction == 'x' or '-x':
+    if direction == 'x' or direction == '-x':
         mc.move(width, curve1, x=True, os=1)
         mc.move(-width, curve2, x=True, os=1)
-    elif direction == 'y' or '-y':
+    elif direction == 'y' or direction == '-y':
         mc.move(width, curve1, y=True, os=1)
         mc.move(-width, curve2, y=True, os=1)
-    elif direction == 'z' or '-z':
+    elif direction == 'z' or direction == '-z':
         mc.move(width, curve1, z=True, os=1)
         mc.move(-width, curve2, z=True, os=1)
 

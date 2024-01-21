@@ -9,18 +9,18 @@ from rigLib.base import module
 from . import project
 from . import char_deform
 import maya.cmds as mc
-
+import os.path
 
 class Character:
 
-    def __init__(self, characterName):
+    def __init__(self, characterName, sceneScale = project.sceneScale):
 
         self.characterName = characterName
-        self.sceneScale = project.sceneScale
+        self.sceneScale = sceneScale
         self.projectPath = project.mainProjectPath
-        self.modelFilePath = '%s/%s/model/%s_model.mb'
-        self.jointFilePath = '%s/%s/build/%s_skeleton.mb'
-        self.wiresFilePath = '%s/%s/build/%s_wires.mb'
+        self.modelFilePath = '%s/%s/rig/model/%s_model.mb'
+        self.jointFilePath = '%s/%s/rig/build/%s_skeleton.mb'
+        self.wiresFilePath = '%s/%s/rig/build/%s_wires.mb'
         self.baseRig = module.Base(characterName = self.characterName, scale = self.sceneScale )
 
     def setup(self):
@@ -47,11 +47,13 @@ class Character:
 
         # import wires
         wiresFile = self.wiresFilePath % (self.projectPath, self.characterName, self.characterName)
-        mc.file(wiresFile, i=1)
+        if os.path.isfile(wiresFile):
+            mc.file(wiresFile, i=1)
 
         # parent model
         modelGrp = '%s_model_grp' % self.characterName
         mc.parent( modelGrp, self.baseRig.modelGrp)
+
 
         # parent skeleton joints
         skeletonGrp = 'skeleton_grp'
@@ -61,3 +63,4 @@ class Character:
 
         # deform setup
         char_deform.build(self.baseRig, self.characterName)
+

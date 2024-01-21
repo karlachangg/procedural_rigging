@@ -59,7 +59,7 @@ def duplicateChain( joints, oldSuffix = 'jnt', newSuffix = 'jnt1', prefix = ''):
 	# make new joint chain
 
 	for i in range(len(joints)):
-
+		#print('Trying to duplicate: {}'.format(joints[i]))
 		jnt = mc.duplicate( joints[i], n = newJoints[i], po = 1, ic = 0, un = 0)
 		parent = mc.listRelatives(jnt, p = 1)
 		if i == 0:

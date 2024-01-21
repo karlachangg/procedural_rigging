@@ -7,3 +7,5 @@ from . import fkChain
 from . import armFKIK
 from . import hand
 from . import bendyLimb
+from . import tail
+from . import reverseFoot

@@ -3,11 +3,6 @@ biped rig setup
 main module
 """
 
-#from rigLib.base import control
-#from rigLib.base import module
-
-#from . import project
-#from . import char_deform
 from . import char
 
 from rigLib.rig import spine
@@ -47,6 +42,7 @@ class Biped(char.Character):
         chestJoint = 'chest_jnt'
 
         spineRig = spine.Spine(
+            type = 'biped',
             spineJoints = spineJoints,
             rootJnt = rootJoint,
             chestJnt = chestJoint,
@@ -84,6 +80,7 @@ class Biped(char.Character):
         outer_loc = 'foot_outer_loc'
 
         leftLegRig = legFKIK.Leg(
+            type = 'biped',
             legJoints = legJoints,
             toeJoints = toeJoints,
             hipPivotJoint = hipPivotJoint,
@@ -100,6 +97,7 @@ class Biped(char.Character):
         leftLegRig.build()
 
         rightLegRig = legFKIK.Leg(
+            type = 'biped',
             legJoints = legJoints,
             toeJoints = toeJoints,
             heelLoc=heel_loc,

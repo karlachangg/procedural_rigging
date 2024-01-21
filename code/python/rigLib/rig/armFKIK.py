@@ -4,6 +4,7 @@ arm FK/IK @ rig
 
 import maya.cmds as mc
 from . import bendyLimb
+from . import reverseFoot
 from ..base import module
 from ..base import control
 
@@ -18,6 +19,17 @@ class Arm():
             prefix = 'arm',
             side = 'l',
             bendy = True,
+            elbowDirection = '-z',
+            forwardAxis = 'x',
+            moveSwitchCtr = 'x, y',
+            buildFoot = False,
+            toeJoints = [],
+            heelLoc= '',
+            innerLoc = '',
+            outerLoc = '',
+            rollAxis = '-z',
+            rockAxis = 'x',
+            ikCtrOrient = 'bone',
             rigScale = 1.0,
             baseRig = None,
             ):
@@ -30,26 +42,47 @@ class Arm():
         :return: dictionary with rig module objects
         """
         self.armJoints = []
+        self.toeJoints = []
 
         for jnt in armJoints:
             newJnt = side + '_' + jnt
             self.armJoints.append(newJnt)
+
+        for jnt in toeJoints:
+            newJnt = side + '_' + jnt
+            self.toeJoints.append(newJnt)
 
 
         self.scapulaJoint = side + '_' + scapulaJoint
         self.prefix = side + '_' + prefix
         self.side = side
         self.bendy = bendy
+        self.elbowDirection = elbowDirection
+        self.forwardAxis = forwardAxis
+        self.moveSwitchCtr = moveSwitchCtr
+
+        self.buildFoot = buildFoot
+        self.heelLoc = side + '_' + heelLoc
+        self.innerLoc = side + '_' + innerLoc
+        self.outerLoc = side + '_' + outerLoc
+
+        self.rollAxis = rollAxis
+        self.rockAxis = rockAxis
+
+        self.ikCtrOrient = ikCtrOrient
         self.rigScale = rigScale
         self.baseRig = baseRig
-        self.bendy = bendy
+
 
         # make rig module
 
         self.rigmodule = module.Module(prefix = self.prefix, baseObj = self.baseRig)
 
         self.rigParts = {'bodyAttachGrp': '',
-                         'handAttachGrp': ''
+                         'handAttachGrp': '',
+                         'ikHandle': '',
+                         'ikControl': '',
+                         'limbMeasureEndNode': '',
                          }
 
 
@@ -66,9 +99,15 @@ class Arm():
         pointConstraints = []
         orientConstraints = []
 
-        for i in range(len(self.armJoints)):
-            pConstraint = mc.pointConstraint(fkRig['joints'][i], ikRig['joints'][i], self.armJoints[i], mo=0)[0]
-            oConstraint = mc.orientConstraint(fkRig['joints'][i], ikRig['joints'][i], self.armJoints[i], mo=0)[0]
+        wholeArm_Joints = []
+        wholeArm_Joints.extend(self.armJoints)
+
+        if self.buildFoot:
+            wholeArm_Joints.extend(self.toeJoints)
+
+        for i in range(len(wholeArm_Joints)):
+            pConstraint = mc.pointConstraint(fkRig['joints'][i], ikRig['joints'][i], wholeArm_Joints[i], mo=0)[0]
+            oConstraint = mc.orientConstraint(fkRig['joints'][i], ikRig['joints'][i], wholeArm_Joints[i], mo=0)[0]
             mc.setAttr('{}.interpType'.format(oConstraint), 2)
             pointConstraints.append(pConstraint)
             orientConstraints.append(oConstraint)
@@ -80,6 +119,9 @@ class Arm():
                                          scale=self.rigScale * 0.5, parent=self.rigmodule.controlsGrp, shape='sphere')
         switch_attr = 'FKIK_Switch'
         mc.addAttr(self.switchCtr.C, ln=switch_attr, at='double', min=0, max=1, dv=0, k=1)
+
+        # Create class member so we can access later
+        self.FKIKAttr = '{}.{}'.format(self.switchCtr.C, switch_attr)
 
         # make reverse node
         reverse = mc.shadingNode('reverse', asUtility=True, n='{}_switch_reverse'.format(self.prefix))
@@ -108,13 +150,23 @@ class Arm():
         mc.parent(pointconstraintGrp, self.baseRig.noXformGrp)
         mc.parent(orientconstraintGrp, self.baseRig.noXformGrp)
 
+        units = 3 * self.rigScale
+        x, y, z = False, False, False
+        if 'x' in self.moveSwitchCtr:
+            x = True
+
+        if 'y' in self.moveSwitchCtr:
+            y = True
+
+        if 'z' in self.moveSwitchCtr:
+            z = True
+
+        if '-' in self.moveSwitchCtr:
+            units = units * -1
+
+
         # move switch ctr
-        if self.side == 'l':
-            mc.move(3, self.switchCtr.Off, x = True, os = 1, r = 1, wd = 1)
-            mc.move(3, self.switchCtr.Off, y = True, os = 1, r = 1, wd = 1)
-        elif self.side == 'r':
-            mc.move(-3, self.switchCtr.Off, x = True, os = 1, r = 1, wd = 1)
-            mc.move(3, self.switchCtr.Off, y = True, os = 1, r = 1, wd = 1)
+        mc.move(units, self.switchCtr.Off, x = x, y = y, z = z, os = 1, r = 1, wd = 1)
 
         # build scapula rig
         scapRig = self.buildScapula()
@@ -207,6 +259,11 @@ class Arm():
         fkJoints = joint.duplicateChain(self.armJoints, 'jnt', 'FK_jnt')
         mc.parent(fkJoints[0], self.rigmodule.jointsGrp)
 
+        if self.buildFoot:
+            fk_toeJoints = joint.duplicateChain(self.toeJoints, 'jnt', 'FK_jnt')
+            mc.parent(fk_toeJoints[0], fkJoints[-1])
+            fkJoints.extend(fk_toeJoints)
+
         # make controls
 
         shoulderCtr = control.Control(prefix ='{}_shoulder'.format(self.prefix), translateTo = fkJoints[0], rotateTo = fkJoints[0],
@@ -217,11 +274,23 @@ class Arm():
                                   scale = self.rigScale, parent = elbowCtr.C, shape = 'circleX')
         controls = [shoulderCtr, elbowCtr, wristCtr]
 
+        if self.buildFoot:
+
+            toeCtr = control.Control(prefix='{}_toeFK'.format(self.prefix), translateTo=fk_toeJoints[0],
+                                     rotateTo=fk_toeJoints[0],
+                                     scale=self.rigScale * 0.5, shape='circleX', parent = wristCtr.C)
+            controls.append(toeCtr)
+
+
         # connect controls
 
         mc.parentConstraint(shoulderCtr.C, fkJoints[0], mo=0)
         mc.parentConstraint(elbowCtr.C, fkJoints[1], mo=0)
         mc.parentConstraint(wristCtr.C, fkJoints[2], mo=0)
+
+        if self.buildFoot:
+            mc.parentConstraint(toeCtr.C, fk_toeJoints[0], mo=0)
+
 
         # attach to scapula
 
@@ -233,25 +302,58 @@ class Arm():
         ikJoints = joint.duplicateChain(self.armJoints, 'jnt', 'IK_jnt')
         mc.parent(ikJoints[0], self.rigmodule.jointsGrp)
 
-        # Make controls
+        if self.buildFoot:
+            ik_toeJoints = joint.duplicateChain(self.toeJoints, 'jnt', 'IK_jnt')
+            mc.parent(ik_toeJoints[0], ikJoints[-1])
+            ikJoints.extend(ik_toeJoints)
 
-        armCtr = control.Control(prefix='{}_arm_ik'.format(self.prefix), translateTo=ikJoints[2], rotateTo= ikJoints[2],
+
+        # Make controls
+        if self.ikCtrOrient == 'bone':
+            orientation = ikJoints[2]
+
+        elif self.ikCtrOrient == 'world':
+            orientation = self.baseRig.global1Ctrl
+
+        armCtr = control.Control(prefix='{}_arm_ik'.format(self.prefix), translateTo=ikJoints[2], rotateTo= orientation,
                                  offsets= ['null', 'zero', 'auto'],
                                  scale=self.rigScale, parent=self.rigmodule.controlsGrp, shape='square')
-        poleVectorCtr = control.Control(prefix='{}_arm_pv'.format(self.prefix), translateTo = ikJoints[1], offsets= ['null', 'zero', 'auto'],
+
+        poleVectorCtr = control.Control(prefix='{}_arm_pv'.format(self.prefix), translateTo = ikJoints[1],
+                                        rotateTo = ikJoints[1], offsets= ['null', 'zero', 'auto'],
                                         scale=self.rigScale * 0.25, parent=self.rigmodule.controlsGrp, shape='orb')
+
         wristGimbalCtr = control.Control(prefix='{}_hand_gimbal'.format(self.prefix), translateTo = ikJoints[2], rotateTo= ikJoints[2],
                                         scale =self.rigScale * 0.5 , lockChannels= ['t', 's'], shape='circle')
+
         controls = [armCtr, poleVectorCtr, wristGimbalCtr]
+
+        self.rigParts['ikControl'] = armCtr
 
         shoulderAttachGrp = mc.group( n = '{}_ikShoulderJnt_driver'.format(self.prefix), em=1 , p = self.rigmodule.partsGrp)
         mc.delete(mc.parentConstraint(ikJoints[0], shoulderAttachGrp, mo = 0))
 
         # move pole vector ctr
-        mc.move(-5, poleVectorCtr.Off, z=True, os=1)
+        units = 5 * self.rigScale
+
+        if self.elbowDirection == 'x' or self.elbowDirection == '-x':
+            x, y, z = True, False, False
+
+        elif self.elbowDirection == 'y' or self.elbowDirection == '-y':
+            x, y, z = False, True, False
+
+        elif self.elbowDirection == 'z' or self.elbowDirection == '-z':
+            x, y, z = False, False, True
+
+        if '-' in self.elbowDirection:
+            units = units * -1
+
+        mc.move(units, poleVectorCtr.Off, x = x, y = y, z = z, os=1, r = 1, wd = 1)
 
         # make IK handle
         armIK = mc.ikHandle(n='{}_ikh'.format(self.prefix), sol='ikRPsolver', sj=ikJoints[0], ee=ikJoints[2])[0]
+        self.rigParts['ikHandle'] = armIK
+
         mc.hide(armIK)
         mc.parent(armIK, self.rigmodule.noXformGrp)
         
@@ -282,6 +384,7 @@ class Arm():
         mc.parent(poleOffsetFollow_noScale, poleOffsetFollow_noScale_offset)
         mc.delete(mc.parentConstraint(armCtr.C, poleOffsetFollow_noScale_offset, mo = 0))
         poleFollowOrientConstraint = mc.orientConstraint(armCtr.C, poleOffsetFollow_noScale, mo = 1 )[0]
+        poleFollowPointConstraint = mc.pointConstraint(armCtr.C, poleOffsetFollow_noScale, mo = 1 )[0]
         pvFollow = mc.group(n='{}_pv_Follow'.format(self.prefix), em=1)
         mc.delete(mc.parentConstraint(poleVectorCtr.C, pvFollow, mo=0))
         mc.parentConstraint(poleOffsetFollow_noScale, pvFollow, mo=1)
@@ -307,11 +410,22 @@ class Arm():
 
         spin_attr = 'Spin'
         mc.addAttr(armCtr.C, ln=spin_attr, at='double', dv=0, k=1)
-        mc.connectAttr('{}.{}'.format(armCtr.C, spin_attr), '{}.offsetX'.format(poleFollowOrientConstraint))
+
+
+        if self.elbowDirection == 'x' or self.elbowDirection == '-x':
+            spinAxisAttr = 'offsetX'
+        elif self.elbowDirection == 'y' or self.elbowDirection == '-y':
+            spinAxisAttr = 'offsetY'
+        elif self.elbowDirection == 'z' or self.elbowDirection == '-z':
+            spinAxisAttr = 'offsetZ'
+
+        mc.connectAttr('{}.{}'.format(armCtr.C, spin_attr), '{}.{}'.format(poleFollowOrientConstraint, spinAxisAttr))
 
 
         # attach objects to controls
-        mc.parentConstraint(armCtr.C, armIK, mo = 1)
+        if self.buildFoot == False:
+            mc.parentConstraint(armCtr.C, armIK, mo = 1)
+
         mc.poleVectorConstraint(poleVectorCtr.C, armIK)
         mc.orientConstraint(wristGimbalCtr.C, ikJoints[2], mo=1)
         mc.parent(wristGimbalCtr.Off, armCtr.C)
@@ -352,6 +466,9 @@ class Arm():
         mc.parentConstraint(followArmIK, followWrist, mo=0)
         mc.parent(followWrist, self.rigmodule.partsGrp)
 
+        # Add followArmIK to rigParts dictionary bc we will need it in case of a reverse foot setup
+        self.rigParts['limbMeasureEndNode'] = followArmIK
+
         # create a distance node to get the length between the two groups
         arm_dist = mc.shadingNode('distanceBetween', asUtility=True, n='{}_arm_length'.format(self.prefix))
         # connect distance node to pv ctr world matrix and group positioned at wrist
@@ -377,8 +494,16 @@ class Arm():
             sdkDriver = '{}.outputX'.format(arm_dist_global)
 
         # Get the original length of the upper and lower arm joints
-        upperArm_length = mc.getAttr('{}.tx'.format(ikJoints[1]))
-        lowerArm_length = mc.getAttr('{}.tx'.format(ikJoints[2]))
+
+        if self.forwardAxis == 'x' or '-x':
+            lengthAxisAttr = 'tx'
+        elif self.forwardAxis == 'y' or '-y':
+            lengthAxisAttr = 'ty'
+        elif self.forwardAxis == 'z' or '-z':
+            lengthAxisAttr = 'tz'
+
+        upperArm_length = mc.getAttr('{}.{}'.format(ikJoints[1], lengthAxisAttr))
+        lowerArm_length = mc.getAttr('{}.{}'.format(ikJoints[2], lengthAxisAttr))
 
         # Calculate the length of fully extended arm
         armLength = upperArm_length + lowerArm_length
@@ -386,6 +511,9 @@ class Arm():
         # Create blender for stretchy arm setup
         stretch_attr = 'Stretchy'
         mc.addAttr(armCtr.C, ln=stretch_attr, at='double', min=0, max=1, dv=0, k=1)
+
+        # Create class member so we can access later
+        self.StretchyAttr = '{}.{}'.format(armCtr.C, stretch_attr)
 
         # make blender node for upper arm
         blenderStretchUpperArm = mc.shadingNode('blendTwoAttr', asUtility=True, n='{}_blenderArmUpper_stretch'.format(self.prefix))
@@ -551,11 +679,39 @@ class Arm():
             mc.connectAttr('{}.outputX'.format(wrist_negateOutput), '{}.input[1]'.format(blenderPinLower))
 
         # connect blender output to ik elbow joint translate X
-        mc.connectAttr('{}.output'.format(blenderPinUpper), '{}.tx'.format(ikJoints[1]))
-        mc.connectAttr('{}.output'.format(blenderPinLower), '{}.tx'.format(ikJoints[2]))
+        mc.connectAttr('{}.output'.format(blenderPinUpper), '{}.{}'.format(ikJoints[1], lengthAxisAttr))
+        mc.connectAttr('{}.output'.format(blenderPinLower), '{}.{}'.format(ikJoints[2], lengthAxisAttr))
 
         mc.setAttr('{}.{}'.format(armCtr.C, stretch_attr), 1)
         mc.setAttr('{}.{}'.format(poleVectorCtr.C, pv_pin_attr), 0)
+
+
+
+        if self.buildFoot == True:
+
+            ik_footJoints = [ikJoints[2], ik_toeJoints[0], ik_toeJoints[1]]
+
+            self.footRig = reverseFoot.Foot(
+                footJoints = ik_footJoints,
+                heelLoc = self.heelLoc,
+                innerLoc = self.innerLoc,
+                outerLoc = self.outerLoc,
+                legIKH = [armIK],
+                footCtr= armCtr,
+                parentCtr= wristGimbalCtr,
+                measureLeg_end_node = self.rigParts['limbMeasureEndNode'],
+                prefix= self.prefix,
+                side= self.side,
+                forwardAxis = self.forwardAxis,
+                rollAxis = self.rollAxis,
+                rockAxis = self.rockAxis,
+                rigScale = self.rigScale,
+                baseRig = self.baseRig
+            )
+
+            self.footRig.build()
+            controls.extend(self.footRig.controls)
+
 
 
         return {'joints': ikJoints, 'controls': controls, 'poleVecLine': poleVectorCurve, 'baseAttachGrp': shoulderAttachGrp, 'rotateGrp': rotateAllGrp}
@@ -729,6 +885,13 @@ class Arm():
 
 
 
+    def setInitialValues(self,
+                         FKIKMode = 1,
+                         Stretchy = 1,
+                         ):
+
+        mc.setAttr(self.FKIKAttr, FKIKMode)
+        mc.setAttr(self.StretchyAttr, Stretchy)
 
 
 
