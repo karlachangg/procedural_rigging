@@ -19,6 +19,7 @@ class Tail():
             tailJoints,
             prefix = 'tail',
             bendy = False,
+            smallestScalePercent = 0.5,
             rigScale = 1.0,
             baseRig = None,
             ):
@@ -33,6 +34,7 @@ class Tail():
         self.tailJoints = tailJoints
         self.prefix = prefix
         self.bendy = bendy
+        self.smallestScalePercent = smallestScalePercent
         self.rigScale = rigScale
         self.baseRig = baseRig
 
@@ -120,8 +122,8 @@ class Tail():
 
         # make controls
 
-        tailFKRig = fkChain.build(fkJoints, rigScale=self.rigScale, parent = self.rigmodule.controlsGrp,
-                                       offsets=['null', 'zero', 'auto'])
+        tailFKRig = fkChain.build(fkJoints[:-1], rigScale=self.rigScale * 1.5, parent = self.rigmodule.controlsGrp,
+                                       smallestScalePercent= 0.25, offsets=['null', 'zero', 'auto'])
 
 
         return {'joints': fkJoints, 'controls': tailFKRig['controls']}

@@ -16,6 +16,7 @@ def build(
         fkParenting = True,
         parent = '',
         shape = 'circle',
+        smallestScalePercent = 0.5,
         lockChannels = ['s', 'v'],
         offsets = ['null']
         ):
@@ -30,12 +31,18 @@ def build(
     """
 
     chainControls = []
+    controlScaleIncrement = (1.0 - smallestScalePercent) / len(joints)
+    #mainCtrScaleFactor = 10
     jointConstraints = []
-    for jnt in joints:
 
-        ctr = control.Control(prefix = name.removeSuffix(jnt), translateTo = jnt, rotateTo = jnt, parent = parent,
-                              scale = rigScale, shape = shape, lockChannels = lockChannels, offsets = offsets)
-        constraint = mc.parentConstraint(ctr.C, jnt, mo = 0)[0]
+    for i in range(len(joints)):
+
+        ctrScale = rigScale * (1.0 - (i * controlScaleIncrement))
+
+        ctr = control.Control(prefix = name.removeSuffix(joints[i]), translateTo = joints[i], rotateTo = joints[i], parent = parent,
+                              scale = ctrScale, shape = shape, lockChannels = lockChannels, offsets = offsets)
+
+        constraint = mc.parentConstraint(ctr.C, joints[i], mo = 0)[0]
         chainControls.append(ctr)
         jointConstraints.append(constraint)
 

@@ -40,17 +40,19 @@ class Base():
         # make global TRS control
         self.global1Ctrl = control.Control(
             prefix = 'global',
-            scale = self.scale * 8,
+            scale = self.scale * 10,
             parent = self.rigGrp,
             lockChannels = ['v'],
-            offsets = ['master', 'shot']
+            offsets = ['master', 'shot'],
+            shape = 'circleY',
+            color = 'black'
         )
 
         for axis in ['y', 'z']:
             mc.connectAttr(self.global1Ctrl.C + '.sx', self.global1Ctrl.C + '.s' + axis)
             mc.setAttr(self.global1Ctrl.C + '.s' + axis, k=0)
 
-        self._rotateGlobalCtrlShape(self.global1Ctrl.C)
+        #self._rotateGlobalCtrlShape(self.global1Ctrl.C)
 
         # make more groups
 
@@ -60,12 +62,14 @@ class Base():
         mc.setAttr(self.noXformGrp + '.it', 0, l=1)
 
         # make rig control with visibility attributes
-        mainCtrl = control.Control(
+        self.mainCtrl = control.Control(
             prefix='main',
-            scale=self.scale * 1,
+            scale=self.scale * .3,
             parent=self.global1Ctrl.C,
             lockChannels=['v', 't', 'r', 's'],
-            offsets= None
+            offsets= None,
+            shape = 'orb',
+            color = 'black'
         )
         mainVisAttrs = ['modelVis', 'jointsVis']
         mainDispAttrs = ['modelDisp', 'jointsDisp']
@@ -74,18 +78,18 @@ class Base():
         # Add rig visiblilty connections
 
         for attr, obj in zip(mainVisAttrs, mainObjList):
-            mc.addAttr(mainCtrl.C, ln=attr, at='enum', enumName='off:on', k=1)
-            mc.setAttr('{}.{}'.format(mainCtrl.C, attr), cb=1)
-            mc.setAttr('{}.{}'.format(mainCtrl.C, attr), 1)
-            mc.connectAttr('{}.{}'.format(mainCtrl.C, attr), '{}.v'.format(obj))
+            mc.addAttr(self.mainCtrl.C, ln=attr, at='enum', enumName='off:on', k=1)
+            mc.setAttr('{}.{}'.format(self.mainCtrl.C, attr), cb=1)
+            mc.setAttr('{}.{}'.format(self.mainCtrl.C, attr), 1)
+            mc.connectAttr('{}.{}'.format(self.mainCtrl.C, attr), '{}.v'.format(obj))
 
         # Add rig visiblilty connections
 
         for attr, obj in zip(mainDispAttrs, mainObjList):
-            mc.addAttr(mainCtrl.C, ln=attr, at='enum', enumName='normal:template:reference', k=1)
-            mc.setAttr('{}.{}'.format(mainCtrl.C, attr), cb=1)
+            mc.addAttr(self.mainCtrl.C, ln=attr, at='enum', enumName='normal:template:reference', k=1)
+            mc.setAttr('{}.{}'.format(self.mainCtrl.C, attr), cb=1)
             mc.setAttr('{}.ove'.format(obj), 1)
-            mc.connectAttr('{}.{}'.format(mainCtrl.C, attr), '{}.ovdt'.format(obj))
+            mc.connectAttr('{}.{}'.format(self.mainCtrl.C, attr), '{}.ovdt'.format(obj))
 
 
 

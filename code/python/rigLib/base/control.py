@@ -19,7 +19,8 @@ class Control():
 				parent = '',
 				shape = 'circle',
 				lockChannels = ['s', 'v'],
-				offsets = ['null']
+				offsets = ['null'],
+				color = ''
 				):
 
 		"""
@@ -54,8 +55,14 @@ class Control():
 			mc.parent( mc.listRelatives( addShape, s = 1 ), ctrlObject, r = 1, s = 1 )
 			mc.delete( addShape )
 		
-		elif shape == 'square':
-			ctrlObject = create_square(prefix)
+		elif shape in ['square', 'squareX']:
+			ctrlObject = create_square(prefix, normal = 'x')
+
+		elif shape == 'squareY':
+			ctrlObject = create_square(prefix, normal = 'y')
+
+		elif shape == 'squareZ':
+			ctrlObject = create_square(prefix, normal = 'z')
 		
 		elif shape == 'orb':
 			ctrlObject = create_orb(prefix)
@@ -65,6 +72,18 @@ class Control():
 
 		elif shape == 'diamond':
 			ctrlObject = create_diamond(prefix)
+
+		elif shape == 'moveAll':
+			ctrlObject = create_move_all(prefix)
+
+		elif shape == 'quadArrow':
+			ctrlObject = create_quad_arrow(prefix)
+
+		elif shape == 'plus':
+			ctrlObject = create_plus(prefix)
+
+		elif shape == 'sun':
+			ctrlObject = create_sun(prefix)
 
 		if not ctrlObject:
 
@@ -100,21 +119,56 @@ class Control():
 		
 
 		# Change Colors
+
 	
 		ctrlShapes = mc.listRelatives( ctrlObject, s = 1 )
 		[ mc.setAttr( s + '.ove', 1 ) for s in ctrlShapes ]
 
-		if prefix.startswith( ('L_', 'l_')):
+		if not color:
 
-			[ mc.setAttr( s + '.ovc', 6 ) for s in ctrlShapes ]
+			if prefix.startswith( ('L_', 'l_')):
 
-		elif prefix.startswith( ('R_', 'r_') ):
+				[ mc.setAttr( s + '.ovc', 6 ) for s in ctrlShapes ]
 
-			[ mc.setAttr( s + '.ovc', 13 ) for s in ctrlShapes ]
+			elif prefix.startswith( ('R_', 'r_') ):
 
-		else:
+				[ mc.setAttr( s + '.ovc', 13 ) for s in ctrlShapes ]
 
-			[ mc.setAttr( s + '.ovc', 22 ) for s in ctrlShapes ]
+			else:
+
+				[ mc.setAttr( s + '.ovc', 22 ) for s in ctrlShapes ]
+		elif color:
+
+			if color == 'blue':
+				[mc.setAttr(s + '.ovc', 6) for s in ctrlShapes]
+
+			elif color == 'red':
+				[mc.setAttr(s + '.ovc', 13) for s in ctrlShapes]
+
+			elif color == 'yellow':
+				[mc.setAttr(s + '.ovc', 22) for s in ctrlShapes]
+
+			elif color == 'green':
+				[mc.setAttr(s + '.ovc', 14) for s in ctrlShapes]
+
+			elif color == 'gray':
+				[mc.setAttr(s + '.ovc', 3) for s in ctrlShapes]
+
+			elif color == 'black':
+				[mc.setAttr(s + '.ovc', 1) for s in ctrlShapes]
+
+			elif color == 'cyan':
+				[mc.setAttr(s + '.ovc', 18) for s in ctrlShapes]
+
+			elif color == 'white':
+				[mc.setAttr(s + '.ovc', 16) for s in ctrlShapes]
+
+			elif color == 'mid_green':
+				[mc.setAttr(s + '.ovc', 23) for s in ctrlShapes]
+
+			else:
+				[mc.setAttr(s + '.ovc', 22) for s in ctrlShapes]
+
 
 		#translate control
 
@@ -180,9 +234,16 @@ def create_circle():
 	control = mc.circle( nr=[0,1,0])[0]
 
 
-def create_square(prefix):
+def create_square(prefix, normal):
 	global control
-	control = mc.curve(d=1, p=[(-1,0,-1),(1,0,-1),(1,0,1),(-1,0,1), (-1,0,-1)], k=[0,1,2,3,4] , n = prefix + '_CTR')
+	if normal == 'x':
+		control = mc.curve(d=1, p=[(-1,0,-1),(1,0,-1),(1,0,1),(-1,0,1), (-1,0,-1)], k=[0,1,2,3,4] , n = prefix + '_CTR')
+	elif normal == 'y':
+		control = mc.curve(d=1, p=[(0, 1, 1), (0, -1, 1), (0, -1, -1), (0, 1, -1), (0, 1, 1)], k=[0, 1, 2, 3, 4],
+						   n=prefix + '_CTR')
+	elif normal == 'z':
+		control = mc.curve(d=1, p=[(-1, 0, -1), (-1, 0, 1), (1, 0, 1), (1, 0, -1), (-1, 0, -1)], k=[0, 1, 2, 3, 4],
+						   n=prefix + '_CTR')
 	return control
 
 def create_move_all(prefix):
@@ -202,15 +263,17 @@ def create_move_all(prefix):
 	mc.delete(arrow_list)
 	mc.xform(control, cp=True)
 
+	return control
+
 
 def create_sun(prefix):
 	global control
-	control = mc.circle(s=16, nr=[0,1,0])[0]
+	control = mc.circle(s=16, nr=[0,1,0],  n = prefix + '_CTR')[0]
 	mc.select((control + '.cv[1]'), (control + '.cv[3]'), (control + '.cv[5]'), (control + '.cv[7]'), (control + '.cv[9]'), (control + '.cv[11]'), (control + '.cv[13]'), (control + '.cv[15]'), (control + '.cv[17]'), (control + '.cv[19]'), r=True)
 	mc.scale(0.3, 0.3, 0.3, p=[0, 0, 0], r=True)
 	mc.makeIdentity(control, apply=True, t=1, r=1, s=1, n=0)
 	mc.xform(control, cp=True)
-    
+	return control
  
 def create_pick(prefix):
 	global control
@@ -234,10 +297,11 @@ def create_triangle(prefix):
 
 def create_plus(prefix):
 	global control
-	control = mc.curve(d=1, p=[(-1,0,-3),(1,0,-3),(1,0,-1),(3,0,-1),(3,0,1),(1,0,1),(1,0,3),(-1,0,3),(-1,0,1),(-3,0,1),(-3,0,-1),(-1,0,-1),(-1,0,-3)], k=[0,1,2,3,4,5,6,7,8,9,10,11,12])
-	mc.scale(control, .33, .33, .33)
+	control = mc.curve(d=1, p=[(-1,0,-3),(1,0,-3),(1,0,-1),(3,0,-1),(3,0,1),(1,0,1),(1,0,3),(-1,0,3),(-1,0,1),(-3,0,1),(-3,0,-1),(-1,0,-1),(-1,0,-3)], k=[0,1,2,3,4,5,6,7,8,9,10,11,12],
+					   n = prefix + '_CTR')
+	mc.scale(0.33, 0.33, 0.33, control)
 	mc.makeIdentity(control, apply=True, t=True, r=True, s=True)
-
+	return control
 	
 def create_single_arrow(prefix):
 	global control
@@ -260,9 +324,11 @@ def create_double_arrow(prefix):
  
 def create_curved_double_arrow(prefix):
 	global control
-	control = mc.curve(d=1, p=[(-0.251045, 0, -1.015808), (-0.761834, 0, -0.979696), (-0.486547, 0, -0.930468), (-0.570736, 0, -0.886448), (-0.72786, 0, -0.774834), (-0.909301, 0, -0.550655), (-1.023899, 0, -0.285854), (-1.063053, 0, 9.80765e-009), (-1.023899, 0, 0.285854), (-0.909301, 0, 0.550655), (-0.72786, 0, 0.774834), (-0.570736, 0, 0.886448), (-0.486547, 0, 0.930468), (-0.761834, 0, 0.979696), (-0.251045, 0, 1.015808), (-0.498915, 0, 0.567734), (-0.440202, 0, 0.841857), (-0.516355, 0, 0.802034), (-0.658578, 0, 0.701014), (-0.822676, 0, 0.498232), (-0.926399, 0, 0.258619), (-0.961797, 0, 8.87346e-009), (-0.926399, 0, -0.258619), (-0.822676, 0, -0.498232), (-0.658578, 0, -0.701014), (-0.516355, 0, -0.802034), (-0.440202, 0, -0.841857), (-0.498915, 0, -0.567734), (-0.251045, 0, -1.015808)], k=[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28])
+	control = mc.curve(d=1, p=[(-0.251045, 0, -1.015808), (-0.761834, 0, -0.979696), (-0.486547, 0, -0.930468), (-0.570736, 0, -0.886448), (-0.72786, 0, -0.774834), (-0.909301, 0, -0.550655), (-1.023899, 0, -0.285854), (-1.063053, 0, 9.80765e-009), (-1.023899, 0, 0.285854), (-0.909301, 0, 0.550655), (-0.72786, 0, 0.774834), (-0.570736, 0, 0.886448), (-0.486547, 0, 0.930468), (-0.761834, 0, 0.979696), (-0.251045, 0, 1.015808), (-0.498915, 0, 0.567734), (-0.440202, 0, 0.841857), (-0.516355, 0, 0.802034), (-0.658578, 0, 0.701014), (-0.822676, 0, 0.498232), (-0.926399, 0, 0.258619), (-0.961797, 0, 8.87346e-009), (-0.926399, 0, -0.258619), (-0.822676, 0, -0.498232), (-0.658578, 0, -0.701014), (-0.516355, 0, -0.802034), (-0.440202, 0, -0.841857), (-0.498915, 0, -0.567734), (-0.251045, 0, -1.015808)], k=[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28],
+					   n=prefix + '_CTR')
 	mc.makeIdentity(apply=True, t=True, r=True, s=True)
 	mc.xform(cp=True)
+	return control
 
 
 def create_triple_arrow(prefix):
@@ -273,13 +339,18 @@ def create_triple_arrow(prefix):
 	mc.scale(.2,.2,.2)
 	mc.makeIdentity(apply=True, t=True, r=True, s=True)
 
+	return control
+
 
 def create_quad_arrow(prefix):
 	global control
-	control = mc.curve(d=1, p=[(1, 0, 1),(3, 0, 1),(3, 0, 2),(5, 0, 0),(3, 0, -2),(3, 0, -1),(1, 0, -1),(1, 0, -3),(2, 0, -3),(0, 0, -5),(-2, 0, -3),(-1, 0, -3),(-1, 0, -1),(-3, 0, -1),(-3, 0, -2),(-5, 0, 0),(-3, 0, 2),(-3, 0, 1),(-1, 0, 1),(-1, 0, 3),(-2, 0, 3),(0, 0, 5),( 2, 0, 3),(1, 0, 3),(1, 0, 1),], k=[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24])
+	control = mc.curve(d=1, p=[(1, 0, 1),(3, 0, 1),(3, 0, 2),(5, 0, 0),(3, 0, -2),(3, 0, -1),(1, 0, -1),(1, 0, -3),(2, 0, -3),(0, 0, -5),(-2, 0, -3),(-1, 0, -3),(-1, 0, -1),(-3, 0, -1),(-3, 0, -2),(-5, 0, 0),(-3, 0, 2),(-3, 0, 1),(-1, 0, 1),(-1, 0, 3),(-2, 0, 3),(0, 0, 5),( 2, 0, 3),(1, 0, 3),(1, 0, 1),], k=[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24],
+					   n = prefix + '_CTR')
 	mc.xform(cp=True)
 	mc.scale(.2,.2,.2)
 	mc.makeIdentity(apply=True, t=True, r=True, s=True)
+
+	return control
 
     
 def create_cube(prefix):
@@ -295,7 +366,7 @@ def create_diamond(prefix):
 def create_cone(prefix):
 	global control
 	control = mc.curve(d=1, p=[(-0.5, -1, 0.866025),(0, 1, 0),(0.5, -1, 0.866025),(-0.5, -1, 0.866025),(-1, -1, -1.5885e-07),(0, 1, 0),(-1, -1, -1.5885e-07),(-0.5, -1, -0.866026),(0, 1, 0),(0.5, -1, -0.866025),(-0.5, -1, -0.866026),(0.5, -1, -0.866025),(0, 1, 0),(1, -1, 0), (0.5, -1, -0.866025),(1, -1, 0),(0.5, -1, 0.866025)  ], k=[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16])
-
+	return control
 
 def create_orb(prefix):
 	global control
@@ -328,7 +399,7 @@ def create_orb(prefix):
 
 	
 def create_lever(prefix):
-	line = mc.curve(d=1, p=[(0, -1, 0),(0, -2, 0 ),(0, -3, 0 ),(0, -4, 0),(0, -5, 0)], k=[0,1,2,3,4])
+	line = mc.curve(d=1, p=[(0, -1, 0),(0, -2, 0 ),(0, -3, 0 ),(0, -4, 0),(0, -5, 0)], k=[0,1,2,3,4], n = prefix + '_CTR')
 	create_orb()
 
 	mc.select(line, r=True)
@@ -342,3 +413,53 @@ def create_lever(prefix):
 	mc.scale(.2,.2,.2)
 	mc.makeIdentity(control, apply=True, t=True, r=True, s=True)
 
+
+
+def _rotateCtrlShape(ctrlObject, axis, value):
+	# flatten ctrl object shape
+
+	ctrlShapes = mc.listRelatives(ctrlObject.C, s=1, type='nurbsCurve')
+	clusters = mc.cluster(ctrlShapes)[1]
+	if 'x' in axis:
+		mc.setAttr(clusters + '.rx', value)
+	if 'y' in axis:
+		mc.setAttr(clusters + '.ry', value)
+	if 'z' in axis:
+		mc.setAttr(clusters + '.rz', value)
+	mc.delete(ctrlShapes, ch=1)
+
+def _translateCtrlShape(ctrlObject, axis, value):
+	# flatten ctrl object shape
+
+	ctrlShapes = mc.listRelatives(ctrlObject.C, s=1, type='nurbsCurve')
+	clusters = mc.cluster(ctrlShapes)[1]
+	if 'x' in axis:
+		mc.setAttr(clusters + '.tx', value)
+	if 'y' in axis:
+		mc.setAttr(clusters + '.ty', value)
+	if 'z' in axis:
+		mc.setAttr(clusters + '.tz', value)
+	mc.delete(ctrlShapes, ch=1)
+
+
+def _scaleCtrlShape(ctrlObject, axis, value):
+	# flatten ctrl object shape
+
+	ctrlShapes = mc.listRelatives(ctrlObject.C, s=1, type='nurbsCurve')
+	clusters = mc.cluster(ctrlShapes)[1]
+	if 'x' in axis:
+		mc.setAttr(clusters + '.sx', value)
+	if 'y' in axis:
+		mc.setAttr(clusters + '.sy', value)
+	if 'z' in axis:
+		mc.setAttr(clusters + '.sz', value)
+	mc.delete(ctrlShapes, ch=1)
+
+
+
+def _adjustCtrShape(ctr, scale):
+	ctrlShapes = mc.listRelatives(ctr.C, s=1, type='nurbsCurve')
+	cls = mc.cluster(ctrlShapes)[1]
+	mc.setAttr(cls + '.ry', 90)
+	mc.delete(ctrlShapes, ch=1)
+	mc.move(5 * scale, ctr.Off, moveY=True, relative=True)

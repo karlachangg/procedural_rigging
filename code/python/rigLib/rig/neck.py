@@ -71,20 +71,24 @@ class Neck():
 
 
         mc.parent(ikJoints[0], self.rigmodule.jointsGrp)
+        controls = []
 
         # make controls
-        headMainCtr = control.Control(prefix='Head', translateTo=self.headJnt,  rotateTo = self.headJnt, scale=self.rigScale * 2,
-                                      parent=self.rigmodule.controlsGrp, shape='circleX', offsets=['null', 'auto', 'zero'])
+        headMainCtr = control.Control(prefix='Head', translateTo=self.headJnt,  rotateTo = self.headJnt, scale=self.rigScale,
+                                      parent=self.rigmodule.controlsGrp, shape='cube', offsets=['null', 'auto', 'zero'])
 
-        neckBaseCtr = control.Control(prefix='Neck', translateTo=self.neckJoints[0], rotateTo=self.neckJoints[0], scale=self.rigScale * 1,
+        neckBaseCtr = control.Control(prefix='Neck', translateTo=self.neckJoints[0], rotateTo=self.neckJoints[0], scale=self.rigScale * 2,
                                       parent=self.rigmodule.controlsGrp, shape='circleX', offsets=['null', 'auto', 'zero'],
-                                      lockChannels = ['s', 'v', 't'])
+                                      lockChannels = ['s', 'v', 't'], color = 'yellow')
+        control._translateCtrlShape(headMainCtr, axis = 'z', value = self.rigScale)
+
+        controls = [neckBaseCtr, headMainCtr]
 
 
         if self.middleControl:
 
             middleCtrl = control.Control(prefix = '{}_Middle'.format(self.prefix), scale = self.rigScale * 1.5,
-                                           shape='square', parent = self.rigmodule.controlsGrp )
+                                           shape='squareY', color = 'yellow', parent = self.rigmodule.controlsGrp )
 
             # position middle control
             mc.delete(mc.pointConstraint(headMainCtr.C, neckBaseCtr.C, middleCtrl.Off, mo=0))
@@ -99,6 +103,8 @@ class Neck():
             mc.parent(followNeckBase, neckBaseCtr.C)
 
             mc.pointConstraint(followHead, followNeckBase, middleCtrl.Off, mo=1)
+
+            controls.append( middleCtrl)
 
 
 
@@ -209,9 +215,13 @@ class Neck():
 
 
         # make attach groups
-        neckBaseAttachGrp = mc.group(n='neckBaseAttach_grp', em=1)
+        neckBaseAttachGrp = mc.group(n='{}BaseAttachGrp'.format(self.prefix), em=1)
         mc.delete(mc.parentConstraint(neckBaseCtr.C, neckBaseAttachGrp, mo=False))
         mc.parentConstraint(neckBaseAttachGrp, neckBaseCtr.Off, mo=True)
+
+        headAttachGrp = mc.group(n='{}_HeadAttachGrp'.format(self.prefix), em=1)
+        mc.parent(headAttachGrp, self.rigmodule.partsGrp)
+        mc.parentConstraint(self.headJnt, headAttachGrp, mo = False)
 
         # Parent head control to neckBase control
         if self.headParentToNeckBase:
@@ -442,7 +452,9 @@ class Neck():
         self.rigParts = {
             'module': self.rigmodule,
             'baseAttachGrp': neckBaseAttachGrp,
-            'headCtr' : headMainCtr
+            'headCtr' : headMainCtr,
+            'controls': controls,
+            'headAttachGrp': headAttachGrp
             }
 
     def setInitialValues(self,

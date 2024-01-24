@@ -80,9 +80,13 @@ class Arm():
 
         self.rigParts = {'bodyAttachGrp': '',
                          'handAttachGrp': '',
+                         'fkControls': '',
+                         'switchControl': '',
                          'ikHandle': '',
                          'ikControl': '',
                          'limbMeasureEndNode': '',
+                         'footControls': '',
+                         'scapulaControls': ''
                          }
 
 
@@ -115,10 +119,14 @@ class Arm():
 
         # Make switch control
 
-        self.switchCtr = control.Control(prefix='{}_FKIK'.format(self.prefix), translateTo=self.armJoints[1],
-                                         scale=self.rigScale * 0.5, parent=self.rigmodule.controlsGrp, shape='sphere')
+        self.switchCtr = control.Control(prefix='{}_FKIK'.format(self.prefix), translateTo=self.armJoints[1], color = 'green',
+                                         scale=self.rigScale * 0.5, parent=self.rigmodule.controlsGrp, shape='plus')
         switch_attr = 'FKIK_Switch'
+        control._rotateCtrlShape(self.switchCtr, axis = 'x', value = 90)
+
         mc.addAttr(self.switchCtr.C, ln=switch_attr, at='double', min=0, max=1, dv=0, k=1)
+
+        self.rigParts['switchControl'] = self.switchCtr
 
         # Create class member so we can access later
         self.FKIKAttr = '{}.{}'.format(self.switchCtr.C, switch_attr)
@@ -291,7 +299,7 @@ class Arm():
         if self.buildFoot:
             mc.parentConstraint(toeCtr.C, fk_toeJoints[0], mo=0)
 
-
+        self.rigParts['fkControls'] = controls
         # attach to scapula
 
         return {'joints': fkJoints, 'controls': controls}
@@ -317,18 +325,19 @@ class Arm():
 
         armCtr = control.Control(prefix='{}_arm_ik'.format(self.prefix), translateTo=ikJoints[2], rotateTo= orientation,
                                  offsets= ['null', 'zero', 'auto'],
-                                 scale=self.rigScale, parent=self.rigmodule.controlsGrp, shape='square')
+                                 scale=self.rigScale, parent=self.rigmodule.controlsGrp, shape='cube')
 
         poleVectorCtr = control.Control(prefix='{}_arm_pv'.format(self.prefix), translateTo = ikJoints[1],
                                         rotateTo = ikJoints[1], offsets= ['null', 'zero', 'auto'],
-                                        scale=self.rigScale * 0.25, parent=self.rigmodule.controlsGrp, shape='orb')
+                                        scale=self.rigScale * 0.25, parent=self.rigmodule.controlsGrp, shape='diamond')
 
         wristGimbalCtr = control.Control(prefix='{}_hand_gimbal'.format(self.prefix), translateTo = ikJoints[2], rotateTo= ikJoints[2],
-                                        scale =self.rigScale * 0.5 , lockChannels= ['t', 's'], shape='circle')
+                                        scale =self.rigScale , lockChannels= ['t', 's'], shape='circle')
 
         controls = [armCtr, poleVectorCtr, wristGimbalCtr]
 
         self.rigParts['ikControl'] = armCtr
+        self.rigParts['ikControls'] = controls
 
         shoulderAttachGrp = mc.group( n = '{}_ikShoulderJnt_driver'.format(self.prefix), em=1 , p = self.rigmodule.partsGrp)
         mc.delete(mc.parentConstraint(ikJoints[0], shoulderAttachGrp, mo = 0))
@@ -712,6 +721,8 @@ class Arm():
             self.footRig.build()
             controls.extend(self.footRig.controls)
 
+            self.rigParts['footControls'] = self.footRig.controls
+
 
 
         return {'joints': ikJoints, 'controls': controls, 'poleVecLine': poleVectorCurve, 'baseAttachGrp': shoulderAttachGrp, 'rotateGrp': rotateAllGrp}
@@ -724,11 +735,13 @@ class Arm():
 
         scapCtr = control.Control(prefix='{}_scapula'.format(self.prefix), translateTo= self.scapulaJoint,
                                   rotateTo = self.scapulaJoint, scale=self.rigScale, parent=self.rigmodule.controlsGrp,
-                                  shape = 'circle', offsets= ['null', 'zero', 'auto'])
+                                  shape = 'quadArrow', offsets= ['null', 'zero', 'auto'])
 
-        scapAimCtr = control.Control(prefix='{}_scapula_translate'.format(self.prefix), translateTo= self.armJoints[0],
-                                  scale=self.rigScale, parent=self.rigmodule.controlsGrp, shape = 'square',
+        scapAimCtr = control.Control(prefix='{}_scapula_translate'.format(self.prefix), translateTo= self.armJoints[0], rotateTo= self.armJoints[0],
+                                  scale=self.rigScale, parent=self.rigmodule.controlsGrp, shape = 'squareY',
                                      lockChannels= ['r', 's'])
+
+        self.rigParts['scapulaControls'] = [scapCtr, scapAimCtr]
 
         # setup aim constraint on scapCtr
 

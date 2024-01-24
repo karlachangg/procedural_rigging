@@ -81,7 +81,7 @@ class Foot():
         heelCtr = control.Control(prefix='{}_heelRoll'.format(self.prefix), translateTo = self.heelLoc,
                                   scale=self.rigScale * 0.3, shape='circleX')
 
-        controls = [ballCtr, toeEndCtr, toeCtr, heelCtr]
+        controls = [ballCtr, toeCtr,  toeEndCtr, heelCtr]
 
         mc.parent(self.heelLoc, heelCtr.C)
         mc.hide(self.heelLoc)

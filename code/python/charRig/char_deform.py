@@ -13,7 +13,7 @@ swExt = '.xml'
 
 def build( baseRig, characterName ):
 
-    modelGrp = '%s_model_grp' % characterName
+    modelGrp = project.modelGrp % characterName
 
     # load skin weights
     geoList = _getModelGeoObjects(modelGrp)
@@ -22,15 +22,23 @@ def build( baseRig, characterName ):
     # apply mush deformers, wrappers, etc.
     # make twist joints if you want
 
+def buildDeltaMush(baseRig, characterName, geoList):
+
+    _applyDeltaMush(geoList)
+
+
+
 def _makeWrap(wrappedObjs, wrapperObj):
 
     mc.select(wrappedObjs)
     mc.select(wrapperObj, add = 1)
     mm.eval('doWrapArgList "7" {"1", "0", "1", "2", "1", "1", "0", "0" }')
 
-def _applyDeltaMush(geo):
+def _applyDeltaMush(geoList):
 
-    deltaMushDf = mc.deltaMush( geo, smoothingIterations = 50)[0]
+    for geo in geoList:
+        name = geo + '_deltaMush'
+        deltaMushDf = mc.deltaMush( geo, smoothingIterations = 20, n = name)[0]
 
 def _getModelGeoObjects(modelGrp):
 
