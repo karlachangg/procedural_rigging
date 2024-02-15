@@ -9,7 +9,6 @@ from ..base import module
 from ..base import control
 
 from ..utils import joint
-from ..utils import name
 
 class Arm():
 
@@ -18,10 +17,13 @@ class Arm():
             scapulaJoint,
             prefix = 'arm',
             side = 'l',
-            bendy = True,
+            bendy = False,
+            ikCtrOrient = 'bone',
             elbowDirection = '-z',
             forwardAxis = 'x',
+            elbowSpinAxis = 'x',
             moveSwitchCtr = 'x, y',
+
             buildFoot = False,
             toeJoints = [],
             heelLoc= '',
@@ -29,17 +31,32 @@ class Arm():
             outerLoc = '',
             rollAxis = '-z',
             rockAxis = 'x',
-            ikCtrOrient = 'bone',
+
             rigScale = 1.0,
             baseRig = None,
             ):
         """
         :param armJoints: list(str), shoulder - elbow - wrist
         :param scapulaJoint: str, scapula position joint
-        :param prefix: str, prefix to name new objects
+        :param prefix: str, prefix to name new objects. Default "arm"
+        :param side: str, left of right side indicator. Default 'l'
+        :param bendy: bool, option to build bendy limb controls. Default False
+        :param ikCtrOrient: bool, option to orient the ik limb control to the bone or world. Default "bone"
+        :param elbowDirection: str, local axis of elbow pole vector direction. Default '-z'
+        :param forwardAxis: str, axis pointing down the joint chain. Default 'x'
+        :param elbowSpinAxis: str, axis along which to spin the pole vector. Default 'x'
+        :param moveSwitchCtr: str, axes along which to translate the switch control. Default 'x, y'
+
+        :param buildFoot: bool, option to build a reverse foot rig at the end of the arm. Default False
+        :param toeJoints: list(str), toe - toeEnd
+        :param heelLoc: str, heel position locator
+        :param innerLoc: str, inner rock position locator
+        :param outerLoc: str, outer rock position locator
+        :param rollAxis: str, axis to ball and toe joints up. Default "-z"
+        :param rockAxis: str, axis to roll outer pivot outwards. Default "x"
+
         :param rigScale: float, scale factor for size of controls
         :param baseRig: instance of base.module.Base class
-        :return: dictionary with rig module objects
         """
         self.armJoints = []
         self.toeJoints = []
@@ -59,6 +76,7 @@ class Arm():
         self.bendy = bendy
         self.elbowDirection = elbowDirection
         self.forwardAxis = forwardAxis
+        self.elbowSpinAxis = elbowSpinAxis
         self.moveSwitchCtr = moveSwitchCtr
 
         self.buildFoot = buildFoot
@@ -300,7 +318,7 @@ class Arm():
             mc.parentConstraint(toeCtr.C, fk_toeJoints[0], mo=0)
 
         self.rigParts['fkControls'] = controls
-        # attach to scapula
+
 
         return {'joints': fkJoints, 'controls': controls}
 
@@ -421,11 +439,11 @@ class Arm():
         mc.addAttr(armCtr.C, ln=spin_attr, at='double', dv=0, k=1)
 
 
-        if self.elbowDirection == 'x' or self.elbowDirection == '-x':
+        if self.elbowSpinAxis == 'x' or self.elbowSpinAxis == '-x':
             spinAxisAttr = 'offsetX'
-        elif self.elbowDirection == 'y' or self.elbowDirection == '-y':
+        elif self.elbowSpinAxis == 'y' or self.elbowSpinAxis == '-y':
             spinAxisAttr = 'offsetY'
-        elif self.elbowDirection == 'z' or self.elbowDirection == '-z':
+        elif self.elbowSpinAxis == 'z' or self.elbowSpinAxis == '-z':
             spinAxisAttr = 'offsetZ'
 
         mc.connectAttr('{}.{}'.format(armCtr.C, spin_attr), '{}.{}'.format(poleFollowOrientConstraint, spinAxisAttr))

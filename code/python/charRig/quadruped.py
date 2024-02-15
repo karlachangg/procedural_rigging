@@ -41,7 +41,7 @@ class Quadruped(char.Character):
         chestJoint = 'chest_jnt'
 
         spineRig = spine.Spine(
-            type = 'quad',
+            type = 'hybrid',
             spineJoints = spineJoints,
             rootJnt = rootJoint,
             chestJnt = chestJoint,
@@ -63,10 +63,10 @@ class Quadruped(char.Character):
             neckJoints=neckJoints,
             headJnt=headJoint,
             neckCurve='neck_curve',
-            prefix='neck',
+            prefix = 'neck',
             forwardAxis = 'x',
             upAxis = 'z',
-            rigScale=self.sceneScale,
+            rigScale = self.sceneScale,
             baseRig = baseRig
         )
         self.neckRig.build()
@@ -109,6 +109,7 @@ class Quadruped(char.Character):
             bendy = False,
             elbowDirection= 'y',
             forwardAxis= 'x',
+            elbowSpinAxis = 'y',
             moveSwitchCtr='-z',
             ikCtrOrient='world',
             buildFoot = True,
@@ -134,8 +135,9 @@ class Quadruped(char.Character):
             prefix = 'frontLeg',
             side = 'r',
             bendy = False,
-            elbowDirection='y',
-            forwardAxis='x',
+            elbowDirection = '-y',
+            forwardAxis = 'x',
+            elbowSpinAxis = 'y',
             moveSwitchCtr='z',
             ikCtrOrient = 'world',
             buildFoot = True,
@@ -200,7 +202,7 @@ class Quadruped(char.Character):
             outerLoc=outer_loc,
             prefix='leg',
             side='r',
-            kneeDirection='y',
+            kneeDirection='-y',
             moveSwitchCtr = 'z',
             rigScale=self.sceneScale,
             bendy=False,

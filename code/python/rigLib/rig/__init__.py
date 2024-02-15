@@ -9,3 +9,6 @@ from . import hand
 from . import bendyLimb
 from . import tail
 from . import reverseFoot
+from . import fingerCurl
+from . import lips
+from . import ribbon

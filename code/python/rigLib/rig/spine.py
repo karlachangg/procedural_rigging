@@ -18,20 +18,21 @@ class Spine():
                  chestJnt,
                  spineCurve,
                  prefix = 'spine',
+                 forwardAxis = 'x',
+                 upAxis = 'y',
                  rigScale = 1.0,
                  baseRig = None):
 
         """
-       :param spineJoints: list(str) list of 7 spine joints
-       :param rootJnt: str, root joint
-       :param spineCurve: str, name of spine cubic curve with 7 cvs matching 7 spine joints
-       :param bodyLocator: str, reference transform for position of body control
-       :param chestLocator: str, reference transform for position of chest control
-       :param pelvisLocator: str, reference transform for position of pelvis control
-       :param prefix: str, prefix to name new objects
-       :param rigScale: float, scale factor for size of controls
-       :param baseRig: instance of base.module.Base class
-       :return: dictionary with rig module objects
+        :param type: str,  IK/FK or hybrid spine
+        :param spineJoints: list(str) list of 7 spine joints
+        :param rootJnt: str, root joint
+        :param spineCurve: str, name of spine cubic curve with 7 cvs matching 7 spine joints
+        :param prefix: str, prefix to name new objects
+        :param forwardAxis: str, axis pointing down the joint chain. Default 'x'
+        :param upAxis: str, axis defining object up direction to be used in IK spline twist setup. Default 'y'
+        :param rigScale: float, scale factor for size of controls
+        :param baseRig: instance of base.module.Base class
        """
         self.type = type
         self.spineJoints = spineJoints
@@ -39,6 +40,8 @@ class Spine():
         self.chestJnt = chestJnt
         self.spineCurve = spineCurve
         self.prefix = prefix
+        self.forwardAxis = forwardAxis
+        self.upAxis = upAxis
         self.rigScale = rigScale
         self.baseRig = baseRig
 
@@ -46,15 +49,22 @@ class Spine():
 
         self.rigmodule = module.Module(prefix = self.prefix, baseObj = self.baseRig)
 
+        # rigParts dictionary
+
+        self.rigParts = {
+            'module': self.rigmodule,
+            'chestAttachGrp': ''
+        }
+
 
     def build(self):
 
-        if self.type == 'biped':
-            self.buildBipedSpine()
-        elif self.type == 'quad':
-            self.buildQuadSpine()
+        if self.type == 'ikfk':
+            self.buildIKFKSpine()
+        elif self.type == 'hybrid':
+            self.buildHybridSpine()
 
-    def buildBipedSpine(self):
+    def buildIKFKSpine(self):
 
         defSpineJoints = [self.rootJnt]
 
@@ -79,7 +89,7 @@ class Spine():
         mc.parent(fkRig['controls'][0].Off, bodyCtrl.C)
 
         # fk root joint follows body control
-        mc.parentConstraint(bodyCtrl.C, fkRig['root'])
+        mc.parentConstraint(bodyCtrl.C, fkRig['root'], mo = 1)
 
 
         # Connect deformation joints to fk and ik joints
@@ -149,14 +159,11 @@ class Spine():
         mc.parent(chestAttachGrp, self.rigmodule.partsGrp)
 
         # rigParts dictionary
-        self.rigParts = {
-                        'module': self.rigmodule,
-                        'chestAttachGrp': chestAttachGrp
-                        }
+        self.rigParts['chestAttachGrp'] = chestAttachGrp
 
 
 
-    def buildQuadSpine(self):
+    def buildHybridSpine(self):
 
         # Create a list of the whole spine joint chain including root and chest
 
@@ -169,7 +176,7 @@ class Spine():
 
         # Make IK rig
 
-        ikRig = self.buildIK(forwardAxis= 'x', upAxis= 'z')
+        ikRig = self.buildIK()
 
         # Connect deformation joints to ik joints
 
@@ -229,6 +236,7 @@ class Spine():
 
         # duplicate spine joints to make FK spine joints
         fkSpineJoints = joint.duplicateChain(self.spineJoints, oldSuffix='jnt', newSuffix='FK_jnt')
+
         # Duplicate root joint
         fk_root_name = self.rootJnt.replace('jnt', 'FK_jnt')
 
@@ -249,13 +257,13 @@ class Spine():
         fkJoints.append(fk_chest_jnt)
 
         fkControlChain = fkChain.build( joints = fkSpineJoints, rigScale = self.rigScale * 2,
-                                        shape = 'circleY', lockChannels = ['t'])
+                                        shape = 'circleX', lockChannels = ['t'])
         controls = fkControlChain['controls']
 
         return {'joints': fkJoints, 'controls': controls, 'root': fk_root_jnt, 'chest': fk_chest_jnt }
 
 
-    def buildIK(self, forwardAxis = 'x', upAxis = 'y' ):
+    def buildIK(self ):
 
         '''
         Create an IK rig. Duplicates deformation joints, creates an IK spline rig, and returns
@@ -289,20 +297,21 @@ class Spine():
 
         hipsCtrlIK = control.Control(prefix ='{}_hips_IK'.format(self.prefix), translateTo = ikSpineJoints[0],
                                      rotateTo = ikSpineJoints[0],
-                                     scale = self.rigScale * 2, shape='square', parent = self.rigmodule.controlsGrp )
+                                     scale = self.rigScale * 2, shape='squareY', parent = self.rigmodule.controlsGrp )
 
         middleCtrlIK = control.Control(prefix = '{}_mid_IK'.format(self.prefix), scale = self.rigScale * 1.5,
-                                       shape='square', parent = self.rigmodule.controlsGrp )
+                                       rotateTo=ikSpineJoints[3],
+                                       shape='squareY', parent = self.rigmodule.controlsGrp )
 
         chestCtrlIK = control.Control(prefix = '{}_chest_IK'.format(self.prefix), translateTo = ikSpineJoints[-1],
                                       rotateTo = ikSpineJoints[-1],
-                                      scale = self.rigScale * 1.5, shape = 'square', parent = self.rigmodule.controlsGrp)
+                                      scale = self.rigScale * 1.5, shape = 'squareY', parent = self.rigmodule.controlsGrp)
 
         controls = [hipsCtrlIK, middleCtrlIK, chestCtrlIK]
 
 
         # attach middle control
-        mc.delete(mc.parentConstraint(chestCtrlIK.C, hipsCtrlIK.C, middleCtrlIK.Off, sr=['x', 'y', 'z'], mo = 0))
+        mc.delete(mc.pointConstraint(chestCtrlIK.C, hipsCtrlIK.C, middleCtrlIK.Off, mo = 0))
 
         # Create empty groups to drive middle control
         followChest = mc.group(em=1, n='{}_chestFollow'.format(self.prefix))
@@ -391,53 +400,53 @@ class Spine():
 
         # Forward Axis setting
 
-        if forwardAxis == 'x':
+        if self.forwardAxis == 'x':
             fAxisAttr = 0
             stretchAxis, squashAxis1, squashAxis2 = 'scaleX', 'scaleY', 'scaleZ'
 
-        elif forwardAxis == 'y':
+        elif self.forwardAxis == 'y':
             fAxisAttr = 2
             stretchAxis, squashAxis1, squashAxis2 = 'scaleY', 'scaleX', 'scaleZ'
 
-        elif forwardAxis == 'z':
+        elif self.forwardAxis == 'z':
             fAxisAttr = 4
             stretchAxis, squashAxis1, squashAxis2 = 'scaleZ', 'scaleY', 'scaleX'
 
-        elif forwardAxis == '-x':
+        elif self.forwardAxis == '-x':
             fAxisAttr = 1
             stretchAxis, squashAxis1, squashAxis2 = 'scaleX', 'scaleY', 'scaleZ'
 
-        elif forwardAxis == '-y':
+        elif self.forwardAxis == '-y':
             fAxisAttr = 3
             stretchAxis, squashAxis1, squashAxis2 = 'scaleY', 'scaleX', 'scaleZ'
 
-        elif forwardAxis == '-z':
+        elif self.forwardAxis == '-z':
             fAxisAttr = 5
             stretchAxis, squashAxis1, squashAxis2 = 'scaleZ', 'scaleY', 'scaleX'
 
         # Up Axis setting
 
-        if upAxis == 'x':
+        if self.upAxis == 'x':
             upAxisAttr = 6
             x, y, z = 1, 0, 0
 
-        elif upAxis == 'y':
+        elif self.upAxis == 'y':
             upAxisAttr = 0
             x, y, z = 0, 1, 0
 
-        elif upAxis == 'z':
+        elif self.upAxis == 'z':
             upAxisAttr = 3
             x, y, z = 0, 0, 1
 
-        elif upAxis == '-x':
+        elif self.upAxis == '-x':
             upAxisAttr = 7
             x, y, z = -1, 0, 0
 
-        elif upAxis == '-y':
+        elif self.upAxis == '-y':
             upAxisAttr = 1
             x, y, z = 0, -1, 0
 
-        elif upAxis == '-z':
+        elif self.upAxis == '-z':
             upAxisAttr = 4
             x, y, z = 0, 0, -1
 
@@ -478,6 +487,7 @@ class Spine():
 
         stretch_attr = 'Stretchy'
         mc.addAttr(chestCtrlIK.C, ln=stretch_attr, at='double', min=0, max=1, dv=0, k=1)
+        self.StretchyAttr = '{}.{}'.format(chestCtrlIK.C, stretch_attr)
 
         # make blender node for stretchy spine
         blenderStretch = mc.shadingNode('blendColors', asUtility=True,
@@ -526,3 +536,8 @@ class Spine():
 
         return { 'joints': ikJoints, 'controls': controls, 'root': ik_root_jnt, 'chest': ik_chest_jnt }
 
+    def setInitialValues(self,
+                         Stretchy = 1,
+                         ):
+
+        mc.setAttr(self.StretchyAttr, Stretchy)

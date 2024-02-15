@@ -89,7 +89,7 @@ class Control():
 
 			ctrlObject = mc.circle( n = prefix + '_ctr', ch = False, normal = circleNormal)[0]
 		
-		
+
 		mc.xform( ctrlObject, s = (scale, scale, scale) )
 		mc.makeIdentity( ctrlObject, apply=True )
 

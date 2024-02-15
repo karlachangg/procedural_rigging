@@ -13,7 +13,7 @@ import maya.cmds as mc
 
 class Rhino(quadruped.Quadruped):
 
-    def __init__(self, characterName, sceneScale = project.sceneScale):
+    def __init__(self, characterName, sceneScale):
         quadruped.Quadruped.__init__(self, characterName, sceneScale)
 
     def build(self):

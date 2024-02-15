@@ -24,16 +24,17 @@ class Neck():
                  ):
 
         """
-       :param spineJoints: list(str) list of 7 spine joints
-       :param rootJnt: str, root joint
-       :param spineCurve: str, name of spine cubic curve with 7 cvs matching 7 spine joints
-       :param bodyLocator: str, reference transform for position of body control
-       :param chestLocator: str, reference transform for position of chest control
-       :param pelvisLocator: str, reference transform for position of pelvis control
+       :param neckJoints: list(str) list of 5 neck joints
+       :param headJnt: str, head joint
+       :param neckCurve: str, name of spine cubic curve with 5 cvs matching 5 neck joints
        :param prefix: str, prefix to name new objects
-       :param rigScale: float, scale factor for size of controls
+       :param forwardAxis: str, axis pointing down the joint chain. Default 'x'
+       :param upAxis: str, axis defining object up direction to be used in IK spline twist setup. Default 'y'
+       :param forwardAxis: str, axis pointing down the joint chain. Default 'x'
+       :param middleControl: bool, option to make a middle control. Default False
+       :param middleControl: bool, option to make a middle control. Default False
+       :param headParentToNeckBase: bool, option to parent head end control to starting IK neck control. Default True
        :param baseRig: instance of base.module.Base class
-       :return: dictionary with rig module objects
        """
 
         self.neckJoints = neckJoints
@@ -50,6 +51,15 @@ class Neck():
         # make rig module
 
         self.rigmodule = module.Module(prefix = self.prefix, baseObj = self.baseRig)
+
+        # rigParts dictionary
+        self.rigParts = {
+            'module': self.rigmodule,
+            'baseAttachGrp': '',
+            'headCtr': '',
+            'controls': '',
+            'headAttachGrp': ''
+        }
 
 
 
@@ -80,9 +90,11 @@ class Neck():
         neckBaseCtr = control.Control(prefix='Neck', translateTo=self.neckJoints[0], rotateTo=self.neckJoints[0], scale=self.rigScale * 2,
                                       parent=self.rigmodule.controlsGrp, shape='circleX', offsets=['null', 'auto', 'zero'],
                                       lockChannels = ['s', 'v', 't'], color = 'yellow')
-        control._translateCtrlShape(headMainCtr, axis = 'z', value = self.rigScale)
+
 
         controls = [neckBaseCtr, headMainCtr]
+
+
 
 
         if self.middleControl:
@@ -449,13 +461,11 @@ class Neck():
         mc.parent(worldGrp, self.rigmodule.partsGrp)
 
         # rigParts dictionary
-        self.rigParts = {
-            'module': self.rigmodule,
-            'baseAttachGrp': neckBaseAttachGrp,
-            'headCtr' : headMainCtr,
-            'controls': controls,
-            'headAttachGrp': headAttachGrp
-            }
+        self.rigParts['baseAttachGrp'] = neckBaseAttachGrp
+        self.rigParts['headCtr'] = headMainCtr
+        self.rigParts['controls'] = controls
+        self.rigParts['headAttachGrp'] = headAttachGrp
+
 
     def setInitialValues(self,
                          Stretchy = 1,

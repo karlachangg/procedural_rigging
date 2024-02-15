@@ -10,7 +10,6 @@ from ..base import module
 from ..base import control
 
 from ..utils import joint
-from ..utils import name
 
 class Leg():
 
@@ -24,19 +23,27 @@ class Leg():
             outerLoc,
             prefix = 'leg',
             side = 'l',
-            kneeDirection = 'y',
-            forwardAxis='x',
+            kneeDirection = 'z',
+            forwardAxis = 'x',
             moveSwitchCtr = 'x, y',
+            bendy = True,
             rigScale = 1.0,
             baseRig = None,
-            bendy = True
+
             ):
         """
         :param legJoints: list(str), hip - knee - ankle
         :param toeJoints: list(str), toe - toeEnd
         :param hipPivotJoint: str, hip position joint
         :param heelLoc: str, heel position locator
+        :param innerLoc: str, inner rock position locator
+        :param outerLoc: str, outer rock position locator
         :param prefix: str, prefix to name new objects
+        :param side: str, left of right side indicator. Default 'l'
+        :param kneeDirection: str, local axis of knee pole vector direction. Default 'y'
+        :param forwardAxis: str, axis pointing down the joint chain. Default 'x'
+        :param moveSwitchCtr: str, axes along which to translate the switch control. Default 'x, y'
+        :param bendy: bool, option to build bendy limb controls
         :param rigScale: float, scale factor for size of controls
         :param baseRig: instance of base.module.Base class
         :return: dictionary with rig module objects
@@ -160,13 +167,6 @@ class Leg():
 
         mc.move(units, switchCtr.Off, x=x, y=y, z=z, os=1, r=1, wd=1)
 
-        '''
-        if self.side == 'l':
-            mc.move(5, switchCtr.Off, x=True, os=1)
-        elif self.side == 'r':
-            mc.move(-5, switchCtr.Off, x=True, os=1)
-        '''
-
         # Set initial state
         mc.setAttr('{}.{}'.format(switchCtr.C, switch_attr), 1 )
 
@@ -236,10 +236,7 @@ class Leg():
         # Move the foot joint back
         mc.parent(self.toeJoints[0], lowerLegBendy.bendyJoints[-1])
 
-        # Connect the bend joints from the bendy rig to the ones we inserted in our deformation skeleton
-        #mc.parentConstraint(upperLegBendy.bendyJoints[1], upperLegJoints[1], mo = 1 )
-        #mc.parentConstraint(upperLegBendy.bendyJoints[2], upperLegJoints[2], mo=1)
-        #mc.parentConstraint(upperLegBendy.bendyJoints[3], upperLegJoints[3], mo=1)
+
 
     def buildFK(self):
 
@@ -300,13 +297,28 @@ class Leg():
         controls = []
         legCtr = control.Control(prefix='{}_leg_ik'.format(self.prefix), translateTo=ikJoints[2],
                                   scale=self.rigScale, parent = self.rigmodule.controlsGrp, shape='square')
-        poleVectorCtr = control.Control(prefix='{}_leg_pv'.format(self.prefix), translateTo=ikJoints[1],
+        poleVectorCtr = control.Control(prefix='{}_leg_pv'.format(self.prefix), translateTo=ikJoints[1], rotateTo = ikJoints[2],
                                  scale=self.rigScale * 0.5, parent = self.rigmodule.controlsGrp, shape='orb')
 
         controls = [legCtr, poleVectorCtr]
 
         # move pole vector ctr
-        mc.move( 5, poleVectorCtr.Off, z = True, os = 1)
+        units = 5
+
+        if self.kneeDirection == 'x' or self.kneeDirection == '-x':
+            x, y, z = True, False, False
+
+        elif self.kneeDirection == 'y' or self.kneeDirection == '-y':
+            x, y, z = False, True, False
+
+        elif self.kneeDirection == 'z' or self.kneeDirection == '-z':
+            x, y, z = False, False, True
+
+        if '-' in self.kneeDirection:
+            units = units * -1
+
+
+        mc.move(units, poleVectorCtr.Off, x=x, y=y, z=z, os=1)
 
         # make IK handle
         legIK = mc.ikHandle(n='{}_ikh'.format(self.prefix), sol='ikRPsolver', sj=ikJoints[0], ee=ikJoints[2])[0]
@@ -1198,6 +1210,7 @@ class Leg():
         elif rollAxis == 'z' or rollAxis == '-z':
             rollAxisAttr = 'rotateZ'
 
+        rollUpNegative = False
         if '-' in rollAxis:
             rollUpNegative = True
 

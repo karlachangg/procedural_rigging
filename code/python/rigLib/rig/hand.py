@@ -182,7 +182,7 @@ class Hand():
         # Create hand control with special attributes
 
         handCtr = control.Control(prefix='{}_hand'.format(self.side), translateTo= handGrp,
-                                      rotateTo= handGrp,
+                                      rotateTo= handGrp, lockChannels= ['t', 'r', 's', 'v'],
                                       scale=self.rigScale * 0.25, parent = handGrp, shape='square')
 
         # move hand ctr

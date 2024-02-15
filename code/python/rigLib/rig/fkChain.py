@@ -16,17 +16,20 @@ def build(
         fkParenting = True,
         parent = '',
         shape = 'circle',
-        smallestScalePercent = 0.5,
+        smallestScalePercent = 1.0,
         lockChannels = ['s', 'v'],
         offsets = ['null']
         ):
 
     """
-    :param chainJoints: list (str), list of chain joints
+    :param joints: list (str), list of joints to add controls
     :param rigScale: float, scale factor for size of controls
-    :param prefix: str, prefix to name new objects
     :param fkParenting: bool, parent each control to the previous one to make an FK chain. Default True
-    :param baseRig: instance of base.module.Base class
+    :param parent: str, name of object to parent controls or control chain to
+    :param shape: str, shape of controls
+    :param smallestScalePercent: float, set to the smallest control size if you want controls that get smaller
+    :param shape: list (str), channels to lock on controls
+    :param offsets: str, offset groups on controls
     :return: list of FK controls created
     """
 
@@ -39,10 +42,11 @@ def build(
 
         ctrScale = rigScale * (1.0 - (i * controlScaleIncrement))
 
-        ctr = control.Control(prefix = name.removeSuffix(joints[i]), translateTo = joints[i], rotateTo = joints[i], parent = parent,
-                              scale = ctrScale, shape = shape, lockChannels = lockChannels, offsets = offsets)
+        ctr = control.Control(prefix = name.removeSuffix(joints[i]), translateTo = joints[i], rotateTo = joints[i],
+                              parent = parent, scale = ctrScale, shape = shape, lockChannels = lockChannels,
+                              offsets = offsets)
 
-        constraint = mc.parentConstraint(ctr.C, joints[i], mo = 0)[0]
+        constraint = mc.parentConstraint(ctr.C, joints[i], mo = 1)[0]
         chainControls.append(ctr)
         jointConstraints.append(constraint)
 

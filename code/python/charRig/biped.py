@@ -11,9 +11,7 @@ from rigLib.rig import ikChain
 from rigLib.rig import legFKIK
 from rigLib.rig import armFKIK
 from rigLib.rig import hand
-from rigLib.rig import bendyLimb
 
-from rigLib.utils import joint
 
 import maya.cmds as mc
 
@@ -41,8 +39,8 @@ class Biped(char.Character):
         rootJoint = 'root_jnt'
         chestJoint = 'chest_jnt'
 
-        spineRig = spine.Spine(
-            type = 'biped',
+        self.spineRig = spine.Spine(
+            type = 'ikfk',
             spineJoints = spineJoints,
             rootJnt = rootJoint,
             chestJnt = chestJoint,
@@ -52,24 +50,25 @@ class Biped(char.Character):
             baseRig = baseRig
         )
 
-        spineRig.build()
+        self.spineRig.build()
 
 
         # neck
-        neckJoints = ['neck_1_jnt', 'neck_2_jnt', 'neck_3_jnt', 'neck_4_jnt']
+        neckJoints = ['neck_1_jnt', 'neck_2_jnt', 'neck_3_jnt', 'neck_4_jnt', 'neck_5_jnt']
         headJoint = 'head_jnt'
 
-        neckRig = neck.build(
-            neckJoints=neckJoints,
-            headJnt=headJoint,
-            neckCurve='neck_curve',
-            prefix=  'neck',
-            rigScale=self.sceneScale,
-            baseRig=baseRig
+        self.neckRig = neck.Neck(
+            neckJoints = neckJoints,
+            headJnt = headJoint,
+            neckCurve ='neck_curve',
+            prefix = 'neck',
+            rigScale = self.sceneScale,
+            baseRig = baseRig
         )
+        self.neckRig.build()
 
         # attach neck to spine
-        mc.parentConstraint(spineRig.rigParts['chestAttachGrp'], neckRig['baseAttachGrp'], mo=1)
+        mc.parentConstraint(self.spineRig.rigParts['chestAttachGrp'], self.neckRig.rigParts['baseAttachGrp'], mo=1)
 
         # left leg
         legJoints = ['hip_jnt', 'knee_jnt', 'ankle_jnt']
@@ -80,7 +79,7 @@ class Biped(char.Character):
         outer_loc = 'foot_outer_loc'
 
         leftLegRig = legFKIK.Leg(
-            type = 'biped',
+            type = '2bones',
             legJoints = legJoints,
             toeJoints = toeJoints,
             hipPivotJoint = hipPivotJoint,
@@ -89,6 +88,8 @@ class Biped(char.Character):
             outerLoc = outer_loc,
             prefix = 'leg',
             side = 'l',
+            kneeDirection = 'z',
+            moveSwitchCtr = 'x',
             rigScale = self.sceneScale,
             bendy= True,
             baseRig = baseRig
@@ -97,7 +98,7 @@ class Biped(char.Character):
         leftLegRig.build()
 
         rightLegRig = legFKIK.Leg(
-            type = 'biped',
+            type = '2bones',
             legJoints = legJoints,
             toeJoints = toeJoints,
             heelLoc=heel_loc,
@@ -106,6 +107,8 @@ class Biped(char.Character):
             hipPivotJoint = hipPivotJoint,
             prefix = 'leg',
             side = 'r',
+            kneeDirection = '-z',
+            moveSwitchCtr='-x',
             rigScale = self.sceneScale,
             bendy = True,
             baseRig = baseRig
@@ -123,6 +126,10 @@ class Biped(char.Character):
             prefix = 'arm',
             side = 'l',
             bendy = True,
+            ikCtrOrient='bone',
+            elbowDirection='-z',
+            forwardAxis='x',
+            moveSwitchCtr='x, y',
             rigScale = self.sceneScale,
             baseRig = baseRig
             )
@@ -130,7 +137,7 @@ class Biped(char.Character):
         self.leftArmRig.build()
 
         # attach left arm to spine
-        mc.parentConstraint(spineRig.rigParts['chestAttachGrp'], self.leftArmRig.rigParts['bodyAttachGrp'], mo=1)
+        mc.parentConstraint(self.spineRig.rigParts['chestAttachGrp'], self.leftArmRig.rigParts['bodyAttachGrp'], mo=1)
 
         self.rightArmRig = armFKIK.Arm(
             armJoints = armJoints,
@@ -138,13 +145,16 @@ class Biped(char.Character):
             prefix = 'arm',
             side = 'r',
             bendy = True,
+            elbowDirection = 'z',
+            forwardAxis='x',
+            moveSwitchCtr = '-x, y',
             rigScale = self.sceneScale,
             baseRig = baseRig
             )
         self.rightArmRig.build()
 
         # attach right arm to spine
-        mc.parentConstraint(spineRig.rigParts['chestAttachGrp'], self.rightArmRig.rigParts['bodyAttachGrp'], mo=1)
+        mc.parentConstraint(self.spineRig.rigParts['chestAttachGrp'], self.rightArmRig.rigParts['bodyAttachGrp'], mo=1)
 
         # Left hand
         fingerJoints = ['finger_index_0_jnt', 'finger_middle_0_jnt', 'finger_ring_0_jnt', 'finger_pinky_0_jnt', 'thumb_0_jnt']

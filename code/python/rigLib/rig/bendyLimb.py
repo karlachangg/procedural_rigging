@@ -57,6 +57,7 @@ class BendyLimb():
 
         bendyJoints  = joint.segmentJointchain(bendyStartJoint, bendyEndJoint, numberOfSegments = 4,
                                                prefix = '{}_bend'.format(self.prefix) )
+
         mc.parent(bendyJoints[0], self.rigmodule.jointsGrp)
 
 
@@ -77,6 +78,8 @@ class BendyLimb():
         # I'd like to make the number of controls procedural but for now lets hardcode it at 3
 
 
+
+
         bendStartCtr = control.Control(prefix='{}_bend0'.format(self.prefix), translateTo = limbStartPos, rotateTo= limbStartPos,
                                      scale=self.rigScale, shape='diamond', parent=self.rigmodule.controlsGrp,
                                        offsets = ['null', 'zero', 'auto'], lockChannels = ['v'])
@@ -84,20 +87,22 @@ class BendyLimb():
         bendMidCtr = control.Control(prefix='{}_bend1'.format(self.prefix), offsets = ['null', 'zero', 'auto'], rotateTo= limbStartPos,
                                        scale=self.rigScale, shape='diamond', parent=self.rigmodule.controlsGrp,
                                      lockChannels = ['v'])
-
+        '''
         bendEndCtr = control.Control(prefix='{}_bend2'.format(self.prefix), translateTo= limbEndPos,
                                        rotateTo = limbEndPos, offsets = ['null', 'zero', 'auto'],
                                        scale=self.rigScale, shape='diamond', parent=self.rigmodule.controlsGrp,
                                      lockChannels = ['v'])
+        '''
 
-        #mc.delete(mc.pointConstraint(bendStartCtr.C, bendEndCtr.C, bendMidCtr.Off, mo = 0))
-        bendControls = [bendStartCtr, bendMidCtr, bendEndCtr]
+
+        bendControls = [bendStartCtr, bendMidCtr]
         startCtrConstraint = mc.parentConstraint(limbStartPos, bendStartCtr.Off, mo = 1)[0]
         mc.setAttr('{}.interpType'.format(startCtrConstraint), 2)
 
-        mc.pointConstraint(limbEndPos, bendEndCtr.Off, mo=1)
-        endCtrConstraint = mc.orientConstraint(limbEndPos, bendEndCtr.Off, mo=1)[0]
-        mc.setAttr('{}.interpType'.format(endCtrConstraint), 2)
+        #mc.pointConstraint(limbEndPos, bendEndCtr.Off, mo=1)
+        # TO DO: Change this to just parent constraint?
+        #endCtrConstraint = mc.orientConstraint(limbEndPos, bendEndCtr.Off, mo=1)[0]
+        #mc.setAttr('{}.interpType'.format(endCtrConstraint), 2)
 
         mc.pointConstraint(limbStartPos, limbEndPos, bendMidCtr.Off, mo=0)
         midCtrConstraint = mc.orientConstraint(limbStartPos, bendMidCtr.Off, skip = self.aimAxis.replace('-', ''), mo=1)[0]
@@ -122,10 +127,7 @@ class BendyLimb():
             mc.parent(loc, bendControls[i].C )
             mc.hide(loc)
             driverLocators.append(loc)
-
-
-        #driverLocatorGrp = mc.group(driverLocators, n = '{}_bend_driverLocator_Grp'.format(self.prefix) )
-        #mc.parent(driverLocatorGrp, self.rigmodule.partsGrp )
+        driverLocators.append(limbEndPos)
 
 
         # Make locators to connect to the curve
@@ -155,7 +157,7 @@ class BendyLimb():
 
         mc.parent(locGrp , self.rigmodule.partsGrp )
 
-        # Make locator and start and end to hold position but not orientation
+        # Make locator at start and end to hold position but not orientation
 
 
         #startNoRotate = mc.spaceLocator(n = '{}_startLoc_noRotate'.format(self.prefix))[0]
@@ -166,9 +168,9 @@ class BendyLimb():
 
         mc.delete(mc.parentConstraint(limbEndPos, endNoRotateOffset, mo = 0))
 
-        mc.pointConstraint(bendEndCtr.C, endNoRotateOffset, mo=0)
+        mc.pointConstraint(limbEndPos, endNoRotateOffset, mo=0)
         endNoRotateConstraint = mc.orientConstraint(limbStartPos, endNoRotateOffset, mo = 0)[0]
-        endNoRotateConstraint2 = mc.orientConstraint(bendEndCtr.C, endNoRotate, skip = skip, mo = 1)[0]
+        endNoRotateConstraint2 = mc.orientConstraint(limbEndPos, endNoRotate, skip = skip, mo = 1)[0]
         mc.setAttr('{}.interpType'.format(endNoRotateConstraint), 2)
         mc.setAttr('{}.interpType'.format(endNoRotateConstraint2), 2)
 
@@ -198,9 +200,12 @@ class BendyLimb():
         mc.parentConstraint(endNoRotate, cvLocatorOffsets[3], e=True, w=0.5)
         mc.setAttr('{}.interpType'.format(loc3Constraint), 2)
 
+        # remove last bendy joint
+        #mc.delete(bendyJoints[-1])
+        #bendyJoints.pop()
 
         # Make another set of joints to ride along curve
-        ridingJoints = joint.duplicateChain(bendyJoints, oldSuffix = 'bend', newSuffix= 'followcurve' )
+        ridingJoints = joint.duplicateChain(bendyJoints[:-1], oldSuffix = 'bend', newSuffix= 'followcurve' )
 
         for jnt in ridingJoints:
             if mc.listRelatives(jnt, p = 1):
@@ -258,14 +263,17 @@ class BendyLimb():
 
         for i in range(len(bendyJoints)):
 
-            pConstraint = mc.pointConstraint(ridingJoints[i], bendyJoints[i], mo = 1)[0]
-            jointConstraints.append(pConstraint)
 
             if bendyJoints[i] == bendyJoints[-1]:
-                lastbendyJntConstraint = mc.orientConstraint(bendEndCtr.C, bendyJoints[i], mo = 1 )[0]
+                lastbendyJntConstraint = mc.parentConstraint(limbEndPos, bendyJoints[i], mo = 1 )[0]
                 mc.setAttr('{}.interpType'.format(lastbendyJntConstraint), 2)
                 jointConstraints.append(lastbendyJntConstraint)
+
             else:
+                pConstraint = mc.pointConstraint(ridingJoints[i], bendyJoints[i], mo=1)[0]
+                jointConstraints.append(pConstraint)
+
+
                 tConstraint = mc.tangentConstraint(bendCurve, bendyJoints[i], aimVector=aimVector, upVector=upVector,
                              worldUpType='objectRotation', worldUpVector= upVector, worldUpObject= cvLocators[i])[0]
 
