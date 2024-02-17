@@ -35,6 +35,8 @@ class BendyLimb():
 
         self.rigmodule = module.Module(prefix=self.prefix, baseObj=self.baseRig)
 
+
+
     def build(self):
 
         # Create locator to follow the start and end joints
@@ -51,12 +53,12 @@ class BendyLimb():
         mc.hide(limbStartPos, limbEndPos)
 
         # Make bendy joints
-        bendyLimb = joint.duplicateChain([self.startJoint, self.endJoint], newSuffix= 'bend_jnt', prefix = self.prefix)
+        bendyLimb = joint.duplicateChain([self.startJoint, self.endJoint], newSuffix= 'bend_jnt', find = self.prefix, replace = self.prefix + '_0')
         bendyStartJoint = bendyLimb[0]
         bendyEndJoint = bendyLimb[1]
 
         bendyJoints  = joint.segmentJointchain(bendyStartJoint, bendyEndJoint, numberOfSegments = 4,
-                                               prefix = '{}_bend'.format(self.prefix) )
+                                               prefix = self.prefix, newSuffix= 'bend_jnt' )
 
         mc.parent(bendyJoints[0], self.rigmodule.jointsGrp)
 
@@ -81,11 +83,11 @@ class BendyLimb():
 
 
         bendStartCtr = control.Control(prefix='{}_bend0'.format(self.prefix), translateTo = limbStartPos, rotateTo= limbStartPos,
-                                     scale=self.rigScale, shape='diamond', parent=self.rigmodule.controlsGrp,
+                                     scale=self.rigScale * 0.5, shape='diamond', parent=self.rigmodule.controlsGrp,
                                        offsets = ['null', 'zero', 'auto'], lockChannels = ['v'])
 
         bendMidCtr = control.Control(prefix='{}_bend1'.format(self.prefix), offsets = ['null', 'zero', 'auto'], rotateTo= limbStartPos,
-                                       scale=self.rigScale, shape='diamond', parent=self.rigmodule.controlsGrp,
+                                       scale=self.rigScale * 0.5, shape='diamond', parent=self.rigmodule.controlsGrp,
                                      lockChannels = ['v'])
         '''
         bendEndCtr = control.Control(prefix='{}_bend2'.format(self.prefix), translateTo= limbEndPos,
@@ -200,9 +202,7 @@ class BendyLimb():
         mc.parentConstraint(endNoRotate, cvLocatorOffsets[3], e=True, w=0.5)
         mc.setAttr('{}.interpType'.format(loc3Constraint), 2)
 
-        # remove last bendy joint
-        #mc.delete(bendyJoints[-1])
-        #bendyJoints.pop()
+
 
         # Make another set of joints to ride along curve
         ridingJoints = joint.duplicateChain(bendyJoints[:-1], oldSuffix = 'bend', newSuffix= 'followcurve' )
@@ -261,6 +261,10 @@ class BendyLimb():
         # List to hold constraints
         jointConstraints = []
 
+        # remove last bendy joint
+        # mc.delete(bendyJoints[-1])
+        # bendyJoints.pop()
+
         for i in range(len(bendyJoints)):
 
 
@@ -282,6 +286,7 @@ class BendyLimb():
         constraintGrp = mc.group(jointConstraints, n = '{}_bendyJointConstraints'.format(self.prefix) )
         mc.parent(constraintGrp, self.rigmodule.noXformGrp)
         self.bendyJoints = bendyJoints
+        self.controls = bendControls
 
 
 

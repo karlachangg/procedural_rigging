@@ -22,6 +22,7 @@ class Character:
         self.jointFilePath = '%s/%s/rig/build/%s_skeleton.mb'
         self.wiresFilePath = '%s/%s/rig/build/%s_wires.mb'
         self.baseRig = module.Base(characterName = self.characterName, scale = self.sceneScale )
+        self.skeletonGrp = 'skeleton_grp'
 
     def setup(self):
 
@@ -56,11 +57,13 @@ class Character:
 
 
         # parent skeleton joints
-        skeletonGrp = 'skeleton_grp'
-        mc.parent(skeletonGrp, self.baseRig.jointsGrp)
+        mc.parent(self.skeletonGrp, self.baseRig.jointsGrp)
 
     def deform(self):
 
         # deform setup
         char_deform.build(self.baseRig, self.characterName)
+
+    def hideDeformationSkeleton(self):
+        mc.hide(self.skeletonGrp)
 

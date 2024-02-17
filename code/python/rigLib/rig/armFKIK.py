@@ -220,6 +220,9 @@ class Arm():
         if self.bendy:
             self.buildBendyLimbs()
 
+        # Create tpose/ a pose switch
+        self.tPose(self.fkControls, self.pvControl, self.ikRotateGrp)
+
     def buildBendyLimbs(self):
 
         # Insert the bendy joints to our deformation skeleton
@@ -239,7 +242,7 @@ class Arm():
             numberOfBendyControls=3,
             aimAxis= aimAxis,
             upAxis= upAxis,
-            prefix= '{}_upperArm'.format(self.side) ,
+            prefix= '{}_shoulder'.format(self.side) ,
             rigScale = self.rigScale,
             baseRig=self.baseRig)
         upperArmBendy.build()
@@ -252,7 +255,7 @@ class Arm():
             numberOfBendyControls=3,
             aimAxis=aimAxis,
             upAxis=upAxis,
-            prefix='{}_lowerArm'.format(self.side),
+            prefix='{}_elbow'.format(self.side),
             rigScale=self.rigScale,
             baseRig=self.baseRig)
 
@@ -272,7 +275,11 @@ class Arm():
         # Move the bendyjoints into the hierarchy
         mc.parent(upperArmBendy.bendyJoints[0], armParentJnt)
 
-        # Move the lower leg bendy joints under the upperleg bendy joints
+        # remove last bendy joint of upper leg
+        mc.delete(upperArmBendy.bendyJoints[-1])
+        upperArmBendy.bendyJoints.pop()
+
+        # Move the lower arm bendy joints under the upper arm bendy joints
         mc.parent(lowerArmBendy.bendyJoints[0], upperArmBendy.bendyJoints[-1] )
 
         # Move the hand joints back
@@ -347,7 +354,7 @@ class Arm():
 
         poleVectorCtr = control.Control(prefix='{}_arm_pv'.format(self.prefix), translateTo = ikJoints[1],
                                         rotateTo = ikJoints[1], offsets= ['null', 'zero', 'auto'],
-                                        scale=self.rigScale * 0.25, parent=self.rigmodule.controlsGrp, shape='diamond')
+                                        scale=self.rigScale * 0.25, parent=self.rigmodule.controlsGrp, shape='locator')
 
         wristGimbalCtr = control.Control(prefix='{}_hand_gimbal'.format(self.prefix), translateTo = ikJoints[2], rotateTo= ikJoints[2],
                                         scale =self.rigScale , lockChannels= ['t', 's'], shape='circle')
@@ -790,16 +797,16 @@ class Arm():
 
         return {'armAttach': endPos, 'bodyAttach': bodyAttachGrp}
 
-    def setTpose(self):
-
-        self.tPose(self.fkControls, self.pvControl, self.ikRotateGrp)
 
     def tPose(self, fkControls, pvControl, ikRotateGrp):
+
         '''
         Set default animation pose to T pose
         '''
 
         mc.setAttr('{}.{}'.format(self.switchCtr.C, 'FKIK_Switch'), 0)
+
+
 
         # Set up locators to straighten shoulder
 
@@ -847,6 +854,9 @@ class Arm():
         mc.addAttr(self.switchCtr.C, ln=poseAttr, at='enum', enumName = 'T-Pose:A-Pose', k = 1)
         mc.setAttr('{}.{}'.format(self.switchCtr.C, poseAttr), cb=1)
         mc.setAttr('{}.{}'.format(self.switchCtr.C, poseAttr), 0)
+
+        # Create class member so we can access later
+        self.APose = '{}.{}'.format(self.switchCtr.C, poseAttr)
 
         fk_tposeRx = mc.getAttr('{}.rx'.format(fkControls[0].Offsets[1]))
         fk_tposeRy = mc.getAttr('{}.ry'.format(fkControls[0].Offsets[1]))
@@ -908,7 +918,7 @@ class Arm():
         mc.setDrivenKeyframe('{}.ry'.format(pvControl.Offsets[1]), cd='{}.{}'.format(self.switchCtr.C, poseAttr))
         mc.setDrivenKeyframe('{}.rz'.format(pvControl.Offsets[1]), cd='{}.{}'.format(self.switchCtr.C, poseAttr))
 
-        mc.setAttr('{}.{}'.format(self.switchCtr.C, poseAttr), 0)
+        mc.setAttr('{}.{}'.format(self.switchCtr.C, poseAttr), 1)
 
 
         # delete stuff
@@ -919,10 +929,15 @@ class Arm():
     def setInitialValues(self,
                          FKIKMode = 1,
                          Stretchy = 1,
+                         Apose = 1,
                          ):
 
         mc.setAttr(self.FKIKAttr, FKIKMode)
         mc.setAttr(self.StretchyAttr, Stretchy)
+        mc.setAttr(self.APose, Apose)
+
+
+
 
 
 

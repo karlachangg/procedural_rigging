@@ -40,7 +40,7 @@ def jointOrient( Joints ):
 	mc.xform( r = 1, ro = ( -90, -90, 0) )
 	mc.makeIdentity( apply = 1,t = 0, r = 1, s = 0, n = 0, pn = 1)
 
-def duplicateChain( joints, oldSuffix = 'jnt', newSuffix = 'jnt1', prefix = ''):
+def duplicateChain( joints, oldSuffix = 'jnt', newSuffix = 'jnt1', prefix = '', find = '', replace = ''):
 
 	# clear maya selection
 	mc.select(cl=1)
@@ -53,6 +53,7 @@ def duplicateChain( joints, oldSuffix = 'jnt', newSuffix = 'jnt1', prefix = ''):
 	for jnt in joints:
 		name = jnt.replace(oldSuffix, newSuffix)
 		name = prefix + name
+		name = name.replace(find, replace)
 		newJoints.append(name)
 
 
@@ -77,13 +78,14 @@ def duplicateChain( joints, oldSuffix = 'jnt', newSuffix = 'jnt1', prefix = ''):
 
 
 
-def segmentJointchain(startJoint, endJoint, numberOfSegments, prefix='', aimAxis='x'):
+def segmentJointchain(startJoint, endJoint, numberOfSegments, aimAxis='x', oldSuffix = 'jnt', newSuffix = 'jnt1', prefix = ''):
 
 	insertJoints = []
 	numberOfNewJoints = numberOfSegments - 1
 
 	for i in range(numberOfNewJoints):
-		name = '{}_{}_jnt'.format(prefix, i)
+		name = '{}_{}_jnt'.format( prefix, i + 1)
+		name = name.replace(oldSuffix, newSuffix)
 		insertJoints.append(name)
 
 	wholeLength = mc.getAttr('{}.t{}'.format(endJoint, aimAxis))

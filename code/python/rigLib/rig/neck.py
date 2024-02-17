@@ -85,11 +85,11 @@ class Neck():
 
         # make controls
         headMainCtr = control.Control(prefix='Head', translateTo=self.headJnt,  rotateTo = self.headJnt, scale=self.rigScale,
-                                      parent=self.rigmodule.controlsGrp, shape='cube', offsets=['null', 'auto', 'zero'])
+                                      parent=self.rigmodule.controlsGrp, shape='cube', offsets=['null', 'auto', 'zero'], color = 'cyan')
 
         neckBaseCtr = control.Control(prefix='Neck', translateTo=self.neckJoints[0], rotateTo=self.neckJoints[0], scale=self.rigScale * 2,
                                       parent=self.rigmodule.controlsGrp, shape='circleX', offsets=['null', 'auto', 'zero'],
-                                      lockChannels = ['s', 'v', 't'], color = 'yellow')
+                                      lockChannels = ['s', 'v', 't'], color = 'cyan')
 
 
         controls = [neckBaseCtr, headMainCtr]

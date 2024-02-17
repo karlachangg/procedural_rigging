@@ -18,7 +18,8 @@ def build(
         shape = 'circle',
         smallestScalePercent = 1.0,
         lockChannels = ['s', 'v'],
-        offsets = ['null']
+        offsets = ['null'],
+        color = 'yellow'
         ):
 
     """
@@ -44,7 +45,7 @@ def build(
 
         ctr = control.Control(prefix = name.removeSuffix(joints[i]), translateTo = joints[i], rotateTo = joints[i],
                               parent = parent, scale = ctrScale, shape = shape, lockChannels = lockChannels,
-                              offsets = offsets)
+                              offsets = offsets, color = color)
 
         constraint = mc.parentConstraint(ctr.C, joints[i], mo = 1)[0]
         chainControls.append(ctr)

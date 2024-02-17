@@ -11,6 +11,7 @@ from rigLib.rig import ikChain
 from rigLib.rig import legFKIK
 from rigLib.rig import armFKIK
 from rigLib.rig import hand
+from rigLib.base import control
 
 
 import maya.cmds as mc
@@ -26,7 +27,8 @@ class Biped(char.Character):
         self.setup()
         self.makeControlSetup(self.baseRig)
         self.deform()
-        self.setInitialPose()
+        self.adjustControlShapes()
+        self.setInitialSettings()
 
     def makeControlSetup(self, baseRig):
         """
@@ -78,7 +80,7 @@ class Biped(char.Character):
         inner_loc = 'foot_inner_loc'
         outer_loc = 'foot_outer_loc'
 
-        leftLegRig = legFKIK.Leg(
+        self.leftLegRig = legFKIK.Leg(
             type = '2bones',
             legJoints = legJoints,
             toeJoints = toeJoints,
@@ -95,9 +97,9 @@ class Biped(char.Character):
             baseRig = baseRig
             )
 
-        leftLegRig.build()
+        self.leftLegRig.build()
 
-        rightLegRig = legFKIK.Leg(
+        self.rightLegRig = legFKIK.Leg(
             type = '2bones',
             legJoints = legJoints,
             toeJoints = toeJoints,
@@ -114,7 +116,7 @@ class Biped(char.Character):
             baseRig = baseRig
             )
 
-        rightLegRig.build()
+        self.rightLegRig.build()
 
         # left arm
         armJoints = ['shoulder_jnt', 'elbow_jnt', 'wrist_jnt']
@@ -192,11 +194,78 @@ class Biped(char.Character):
         )
         rightHandRig.build()
 
-    def setInitialPose(self):
+    def setInitialSettings(self):
 
         #  Set arms to a T pose
-        self.leftArmRig.setTpose()
-        self.rightArmRig.setTpose()
+        #self.leftArmRig.setTpose()
+        #self.rightArmRig.setTpose()
+
+        self.leftArmRig.setInitialValues(FKIKMode=1, Stretchy= 1)
+
+
+        self.rightArmRig.setInitialValues(FKIKMode=1, Stretchy=1 )
+
+
+    def adjustControlShapes(self):
+
+        # head control
+        control._translateCtrlShape(self.neckRig.rigParts['controls'][1], axis='y', value=0.613)
+        control._translateCtrlShape(self.neckRig.rigParts['controls'][1], axis='z', value= 0.292)
+        # neck control
+        control._scaleCtrlShape(self.neckRig.rigParts['controls'][0], axis='x, y, z', value=0.75)
+
+        # Spine
+        # hip IK
+        control._scaleCtrlShape(self.spineRig.rigParts['ikControls'][0], axis='y', value = 0.5)
+
+        # chest IK
+        control._scaleCtrlShape(self.spineRig.rigParts['ikControls'][2], axis='y', value = 0.5)
+
+        # middle IK
+        control._scaleCtrlShape(self.spineRig.rigParts['ikControls'][1], axis='y', value=0.1)
+
+        # switch control
+        control._translateCtrlShape(self.spineRig.rigParts['switchControl'], axis='x', value= 1.0)
+
+        # left leg
+        #bendControls
+        control._scaleCtrlShape(self.leftLegRig.rigParts['bendControls'][0], axis='x,y,z', value=2)
+        control._scaleCtrlShape(self.leftLegRig.rigParts['bendControls'][1], axis = 'x,y,z', value = 2)
+        control._scaleCtrlShape(self.leftLegRig.rigParts['bendControls'][2], axis='x,y,z', value=2)
+        control._scaleCtrlShape(self.leftLegRig.rigParts['bendControls'][3], axis='x,y,z', value=2)
+
+        # foot ik control
+        control._translateCtrlShape(self.leftLegRig.rigParts['ikControl'], axis='y', value = -0.343)
+        control._translateCtrlShape(self.leftLegRig.rigParts['ikControl'], axis='z', value= 0.832)
+        control._scaleCtrlShape(self.leftLegRig.rigParts['ikControl'], axis='y', value=0.5)
+        control._scaleCtrlShape(self.leftLegRig.rigParts['ikControl'], axis='z', value= 1.2)
+
+        # right leg
+        # bendControls
+        control._scaleCtrlShape(self.rightLegRig.rigParts['bendControls'][0], axis='x,y,z', value=2)
+        control._scaleCtrlShape(self.rightLegRig.rigParts['bendControls'][1], axis='x,y,z', value=2)
+        control._scaleCtrlShape(self.rightLegRig.rigParts['bendControls'][2], axis='x,y,z', value=2)
+        control._scaleCtrlShape(self.rightLegRig.rigParts['bendControls'][3], axis='x,y,z', value=2)
+
+        # foot ik control
+        control._translateCtrlShape(self.rightLegRig.rigParts['ikControl'], axis='y', value = -0.343)
+        control._translateCtrlShape(self.rightLegRig.rigParts['ikControl'], axis='z', value=0.832)
+        control._scaleCtrlShape(self.rightLegRig.rigParts['ikControl'], axis='y', value=0.5)
+        control._scaleCtrlShape(self.rightLegRig.rigParts['ikControl'], axis='z', value=1.2)
+
+        # left arm
+        # hand ik control
+        control._translateCtrlShape(self.leftArmRig.rigParts['ikControl'], axis='x', value = 0.373 )
+        control._translateCtrlShape(self.leftArmRig.rigParts['ikControl'], axis= 'y', value = -0.813)
+        control._translateCtrlShape(self.leftArmRig.rigParts['ikControl'], axis='z', value = 0.34)
+        control._scaleCtrlShape(self.leftArmRig.rigParts['ikControl'], axis = 'x,y,z', value = 0.8)
+
+        # right arm
+        # hand ik control
+        control._translateCtrlShape(self.rightArmRig.rigParts['ikControl'], axis='x', value = -0.373)
+        control._translateCtrlShape(self.rightArmRig.rigParts['ikControl'], axis='y', value =  -0.813)
+        control._translateCtrlShape(self.rightArmRig.rigParts['ikControl'], axis='z', value = 0.34)
+        control._scaleCtrlShape(self.rightArmRig.rigParts['ikControl'], axis='x,y, z', value = 0.8)
 
 
 

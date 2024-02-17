@@ -81,11 +81,24 @@ class Leg():
         # make attach groups
         #bodyAttachGrp = mc.group(n = '{}_BodyAttach_grp'.format(self.prefix), em=1, p = self.rigmodule.partsGrp)
 
+        self.rigParts = {'bodyAttachGrp': '',
+                         'fkControls': '',
+                         'switchControl': '',
+                         'ikHandle': '',
+                         'ikControl': '',
+                         'pvControl': '',
+                         'limbMeasureEndNode': '',
+                         'bendControls': ''
+                         }
+
     def build(self):
 
 
         # Make FK rig
         fkRig = self.buildFK()
+
+        # Define rigParts properties
+        self.rigParts['fkControls'] = fkRig['controls']
 
         # Make IK rig
         if self.type == '2bones':
@@ -113,9 +126,14 @@ class Leg():
         # Make switch control
 
         switchCtr = control.Control(prefix='{}_FKIK'.format(self.prefix), translateTo= wholeLeg_Joints[1],
-                                 scale=self.rigScale * 0.5, parent=self.rigmodule.controlsGrp, shape='sphere')
+                                 scale=self.rigScale * 0.5, parent=self.rigmodule.controlsGrp, shape='plus', color = 'green')
         switch_attr = 'FKIK_Switch'
         mc.addAttr(switchCtr.C, ln = switch_attr, at= 'double', min = 0, max = 1, dv = 0, k = 1)
+
+        control._rotateCtrlShape(switchCtr, axis='x', value=90)
+
+        # Define rigParts properties
+        self.rigParts['switchControl'] =switchCtr
 
         # Create class member so we can access later
         self.FKIKAttr = '{}.{}'.format(switchCtr.C, switch_attr)
@@ -200,7 +218,7 @@ class Leg():
             numberOfBendyControls=3,
             aimAxis= aimAxis,
             upAxis= upAxis,
-            prefix= '{}_upperLeg'.format(self.side) ,
+            prefix= '{}_hip'.format(self.side) ,
             rigScale = self.rigScale,
             baseRig=self.baseRig)
         upperLegBendy.build()
@@ -213,7 +231,7 @@ class Leg():
             numberOfBendyControls=3,
             aimAxis=aimAxis,
             upAxis=upAxis,
-            prefix='{}_lowerLeg'.format(self.side),
+            prefix='{}_knee'.format(self.side),
             rigScale=self.rigScale,
             baseRig=self.baseRig)
 
@@ -230,11 +248,18 @@ class Leg():
         # Move the bendyjoints into the hierarchy
         mc.parent(upperLegBendy.bendyJoints[0], legParentJnt)
 
+        # remove last bendy joint of upper leg
+        mc.delete(upperLegBendy.bendyJoints[-1])
+        upperLegBendy.bendyJoints.pop()
+
         # Move the lower leg bendy joints under the upperleg bendy joints
         mc.parent(lowerLegBendy.bendyJoints[0], upperLegBendy.bendyJoints[-1] )
 
         # Move the foot joint back
         mc.parent(self.toeJoints[0], lowerLegBendy.bendyJoints[-1])
+
+        # Save rigparts dictionary
+        self.rigParts['bendControls'] = upperLegBendy.controls + lowerLegBendy.controls
 
 
 
@@ -254,7 +279,7 @@ class Leg():
         kneeCtr = control.Control(prefix = '{}_knee'.format(self.prefix), translateTo = fkJoints[1], rotateTo = fkJoints[1],
                                   scale = self.rigScale, parent = hipCtr.C, shape = 'circleX')
         footCtr = control.Control(prefix = '{}_foot'.format(self.prefix), translateTo = fkJoints[2], rotateTo = fkJoints[2],
-                                        scale = self.rigScale, parent = kneeCtr.C, shape = 'circleY')
+                                        scale = self.rigScale, parent = kneeCtr.C, shape = 'circleX')
 
         toeCtr = control.Control(prefix='{}_toeFK'.format(self.side), translateTo = fk_toeJoints[0], rotateTo=fk_toeJoints[0],
                                  scale=self.rigScale * 0.5, shape='circleX', parent = footCtr.C)
@@ -296,11 +321,14 @@ class Leg():
         # Make controls
         controls = []
         legCtr = control.Control(prefix='{}_leg_ik'.format(self.prefix), translateTo=ikJoints[2],
-                                  scale=self.rigScale, parent = self.rigmodule.controlsGrp, shape='square')
+                                  scale=self.rigScale, parent = self.rigmodule.controlsGrp, shape='cube')
         poleVectorCtr = control.Control(prefix='{}_leg_pv'.format(self.prefix), translateTo=ikJoints[1], rotateTo = ikJoints[2],
-                                 scale=self.rigScale * 0.5, parent = self.rigmodule.controlsGrp, shape='orb')
+                                 scale=self.rigScale * 0.5, parent = self.rigmodule.controlsGrp, shape='locator')
 
         controls = [legCtr, poleVectorCtr]
+
+        self.rigParts['ikControl'] = legCtr
+        self.rigParts['pvControl'] = poleVectorCtr
 
         # move pole vector ctr
         units = 5
@@ -418,6 +446,9 @@ class Leg():
         # parent constrain followFoot group to group under ik leg ctr
         mc.parentConstraint(followLegIK, followFoot, mo=0)
         mc.parent(followFoot, self.rigmodule.partsGrp)
+
+        # Add followLegIK to rigParts dictionary bc we will need it in case of a reverse foot setup
+        self.rigParts['limbMeasureEndNode'] = followLegIK
 
         # create a distance node to get the length between the two groups
         leg_dist = mc.shadingNode('distanceBetween', asUtility=True, n='{}_leg_length'.format(self.prefix))

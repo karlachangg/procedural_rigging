@@ -53,7 +53,10 @@ class Spine():
 
         self.rigParts = {
             'module': self.rigmodule,
-            'chestAttachGrp': ''
+            'chestAttachGrp': '',
+            'fkControls': '',
+            'ikControls': '',
+            'switchControl': ''
         }
 
 
@@ -75,11 +78,15 @@ class Spine():
         # Make FK rig
         fkRig = self.buildFK()
 
+        # Define rigParts properties
+        self.rigParts['fkControls'] = fkRig['controls']
+
         # Make IK rig
         ikRig = self.buildIK()
+        self.rigParts['ikControls'] = ikRig['controls']
 
         # make body control
-        bodyCtrl = control.Control(prefix = '{}_body'.format(self.prefix), translateTo = self.rootJnt,
+        bodyCtrl = control.Control(prefix = '{}_body'.format(self.prefix), translateTo = self.rootJnt, color = 'cyan',
                                    scale = self.rigScale * 3, shape = 'circleY', parent = self.rigmodule.controlsGrp)
 
         # ik and fk controls follow bodyCTR
@@ -102,9 +109,14 @@ class Spine():
         # Make switch control
 
         switchCtr = control.Control(prefix='{}_FKIK'.format(self.prefix), translateTo=self.spineJoints[0],
-                                    scale=self.rigScale * 0.5, parent=self.rigmodule.controlsGrp, shape='sphere')
+                                    scale=self.rigScale * 0.5, parent=self.rigmodule.controlsGrp, shape='plus', color = 'cyan')
         switch_attr = 'FKIK_Switch'
         mc.addAttr(switchCtr.C, ln=switch_attr, at='double', min=0, max=1, dv=0, k=1)
+
+        control._rotateCtrlShape(switchCtr, axis='x', value=90)
+
+        # Define rigParts properties
+        self.rigParts['switchControl'] = switchCtr
 
         # make reverse node
         reverse = mc.shadingNode('reverse', asUtility=True, n='{}_leg_switch_reverse'.format(self.prefix))
@@ -257,7 +269,7 @@ class Spine():
         fkJoints.append(fk_chest_jnt)
 
         fkControlChain = fkChain.build( joints = fkSpineJoints, rigScale = self.rigScale * 2,
-                                        shape = 'circleX', lockChannels = ['t'])
+                                        shape = 'circleX', lockChannels = ['t'], color = 'cyan')
         controls = fkControlChain['controls']
 
         return {'joints': fkJoints, 'controls': controls, 'root': fk_root_jnt, 'chest': fk_chest_jnt }
@@ -296,16 +308,16 @@ class Spine():
         # make controls
 
         hipsCtrlIK = control.Control(prefix ='{}_hips_IK'.format(self.prefix), translateTo = ikSpineJoints[0],
-                                     rotateTo = ikSpineJoints[0],
-                                     scale = self.rigScale * 2, shape='squareY', parent = self.rigmodule.controlsGrp )
+                                     rotateTo = ikSpineJoints[0], color = 'cyan',
+                                     scale = self.rigScale * 2, shape='cube', parent = self.rigmodule.controlsGrp )
 
         middleCtrlIK = control.Control(prefix = '{}_mid_IK'.format(self.prefix), scale = self.rigScale * 1.5,
-                                       rotateTo=ikSpineJoints[3],
-                                       shape='squareY', parent = self.rigmodule.controlsGrp )
+                                       rotateTo=ikSpineJoints[3], color = 'cyan',
+                                       shape='cube', parent = self.rigmodule.controlsGrp )
 
         chestCtrlIK = control.Control(prefix = '{}_chest_IK'.format(self.prefix), translateTo = ikSpineJoints[-1],
-                                      rotateTo = ikSpineJoints[-1],
-                                      scale = self.rigScale * 1.5, shape = 'squareY', parent = self.rigmodule.controlsGrp)
+                                      rotateTo = ikSpineJoints[-1], color = 'cyan',
+                                      scale = self.rigScale * 2, shape = 'cube', parent = self.rigmodule.controlsGrp)
 
         controls = [hipsCtrlIK, middleCtrlIK, chestCtrlIK]
 

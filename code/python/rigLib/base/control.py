@@ -85,6 +85,9 @@ class Control():
 		elif shape == 'sun':
 			ctrlObject = create_sun(prefix)
 
+		elif shape == 'locator':
+			ctrlObject = create_locator(prefix)
+
 		if not ctrlObject:
 
 			ctrlObject = mc.circle( n = prefix + '_ctr', ch = False, normal = circleNormal)[0]
@@ -352,6 +355,10 @@ def create_quad_arrow(prefix):
 
 	return control
 
+def create_locator(prefix):
+	global control
+	control = mc.curve(d=1, p = [(0,-1,0), (0,1,0), (0,0,0), (1,0,0), (-1,0,0), (0,0,0), (0,0,1), (0,0,-1)] ,  n = prefix + '_CTR')
+	return control
     
 def create_cube(prefix):
 	global control
