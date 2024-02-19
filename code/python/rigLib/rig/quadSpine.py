@@ -1,5 +1,5 @@
 """
-spine @ rig
+quadruped spine @ rig
 """
 import maya.cmds as mc
 
@@ -9,10 +9,9 @@ from ..utils import joint
 
 from . import fkChain
 
-class Spine():
+class QuadSpine():
 
     def __init__(self,
-                 type,
                  spineJoints,
                  rootJnt,
                  chestJnt,
@@ -34,7 +33,7 @@ class Spine():
         :param rigScale: float, scale factor for size of controls
         :param baseRig: instance of base.module.Base class
        """
-        self.type = type
+
         self.spineJoints = spineJoints
         self.rootJnt = rootJnt
         self.chestJnt = chestJnt
@@ -54,21 +53,15 @@ class Spine():
         self.rigParts = {
             'module': self.rigmodule,
             'chestAttachGrp': '',
+            'hipsAttachGrp': '',
             'fkControls': '',
             'ikControls': '',
             'switchControl': ''
         }
 
-
     def build(self):
 
-        if self.type == 'ikfk':
-            self.buildIKFKSpine()
-        elif self.type == 'hybrid':
-            self.buildHybridSpine()
-
-    def buildIKFKSpine(self):
-
+        # Construct a list of all spine joints: root + spine joints + chest
         defSpineJoints = [self.rootJnt]
 
         for jnt in self.spineJoints:
@@ -87,21 +80,19 @@ class Spine():
 
         # make body control
         bodyCtrl = control.Control(prefix = '{}_body'.format(self.prefix), translateTo = self.rootJnt, color = 'yellow',
-                                   scale = self.rigScale * 3, shape = 'circleY', parent = self.rigmodule.controlsGrp)
+                                   scale = self.rigScale * 3, shape = 'circleZ', parent = self.rigmodule.controlsGrp)
 
         # ik and fk controls follow bodyCTR
-        mc.parent(ikRig['controls'][0].Off, bodyCtrl.C)
         mc.parent(ikRig['controls'][3].Off, bodyCtrl.C)
+        mc.parent(ikRig['controls'][4].Off, bodyCtrl.C)
 
         mc.parent(fkRig['controls'][0].Off, bodyCtrl.C)
-
 
         # fk root joint follows body control
         mc.parentConstraint(bodyCtrl.C, fkRig['root'], mo = 1)
 
 
         # Connect deformation joints to fk and ik joints
-
         constraints = []
         for i in range(len(defSpineJoints)):
             constraints.append( mc.parentConstraint(fkRig['joints'][i], ikRig['joints'][i], defSpineJoints[i], mo = 0) [0])
@@ -115,6 +106,9 @@ class Spine():
         mc.addAttr(switchCtr.C, ln=switch_attr, at='double', min=0, max=1, dv=0, k=1)
 
         control._rotateCtrlShape(switchCtr, axis='x', value=90)
+
+        # move switch ctr
+        mc.move(5, switchCtr.Off, x=True, os=1)
 
         # Define rigParts properties
         self.rigParts['switchControl'] = switchCtr
@@ -134,8 +128,8 @@ class Spine():
         for ctrl in ikRig['controls']:
             mc.connectAttr('{}.{}'.format(switchCtr.C, switch_attr), '{}.v'.format(ctrl.Off))
 
-        # Setup blend between joint scales
 
+        # Setup blend between joint scales
 
         for i in range(len(defSpineJoints)):
 
@@ -156,67 +150,9 @@ class Spine():
 
 
 
-
-
-
         # organize
         constraintGrp = mc.group(constraints, n='defSkeleton_{}_constraints'.format(self.prefix))
         mc.parent(constraintGrp, self.baseRig.noXformGrp)
-
-        # move switch ctr
-        mc.move(3, switchCtr.Off, x=True, os=1)
-
-        # make attach groups
-        chestAttachGrp = mc.group(n='{}_chestAttach_grp'.format(self.prefix), em=True)
-        mc.parentConstraint(self.chestJnt, chestAttachGrp, mo=0)
-        mc.parent(chestAttachGrp, self.rigmodule.partsGrp)
-
-        # rigParts dictionary
-        self.rigParts['chestAttachGrp'] = chestAttachGrp
-
-
-
-    def buildHybridSpine(self):
-
-        # Create a list of the whole spine joint chain including root and chest
-
-        spineDeformJoints = [self.rootJnt]
-
-        for jnt in self.spineJoints:
-            spineDeformJoints.append(jnt)
-
-        spineDeformJoints.append(self.chestJnt)
-
-        # Make IK rig
-
-        ikRig = self.buildIK()
-
-        # Connect deformation joints to ik joints
-
-        constraints = []
-
-        for i in range(len(spineDeformJoints)):
-            constraints.append(mc.parentConstraint(ikRig['joints'][i], spineDeformJoints[i], mo=0)[0])
-            mc.connectAttr('{}.scale'.format(ikRig['joints'][i]), '{}.scale'.format(spineDeformJoints[i]))
-
-        # make body control
-        bodyCtrl = control.Control(prefix='{}_body'.format(self.prefix), translateTo=self.rootJnt, rotateTo =self.rootJnt,
-                                   scale=self.rigScale * 3, shape='circleX', parent=self.rigmodule.controlsGrp)
-
-        # Make FK Controls which will drive IK controls
-        fkBackCtr = control.Control(prefix='{}_backFK'.format(self.prefix), translateTo = self.rootJnt, rotateTo =self.rootJnt,
-                                     scale=self.rigScale * 2, shape='circleX', parent= bodyCtrl.C)
-
-        fkFrontCtr = control.Control(prefix='{}_frontFK'.format(self.prefix), translateTo=self.rootJnt, rotateTo =self.rootJnt,
-                                    scale=self.rigScale * 2, shape='circleX', parent=bodyCtrl.C)
-
-        fkTorsoCtr = control.Control(prefix='{}_torso'.format(self.prefix), translateTo=self.spineJoints[4],
-                                     rotateTo=self.spineJoints[4],
-                                     scale=self.rigScale * 2, shape='circleX', parent=fkFrontCtr.C)
-
-        mc.parent(ikRig['controls'][0].Off, fkBackCtr.C)
-        mc.parent(ikRig['controls'][2].Off, fkTorsoCtr.C)
-        mc.parent(ikRig['controls'][1].Off, bodyCtrl.C)
 
         # make attach groups
         chestAttachGrp = mc.group(n='{}_chestAttach_grp'.format(self.prefix), em=True)
@@ -224,21 +160,15 @@ class Spine():
         mc.parent(chestAttachGrp, self.rigmodule.partsGrp)
 
         hipsAttachGrp = mc.group(n='{}_hipsAttach_grp'.format(self.prefix), em=True)
-        mc.parentConstraint(self.spineJoints[0], hipsAttachGrp, mo=0)
+        mc.parentConstraint(self.rootJnt, hipsAttachGrp, mo=0)
         mc.parent(hipsAttachGrp, self.rigmodule.partsGrp)
 
-        # organize
-        constraintGrp = mc.group(constraints, n='defSkeleton_{}_constraints'.format(self.prefix))
-        mc.parent(constraintGrp, self.baseRig.noXformGrp)
+        # call set initial values
+        self.setInitialValues()
 
         # rigParts dictionary
-        self.rigParts = {
-            'module': self.rigmodule,
-            'chestAttachGrp': chestAttachGrp,
-            'hipsAttachGrp': hipsAttachGrp
-        }
-
-
+        self.rigParts['chestAttachGrp'] = chestAttachGrp
+        self.rigParts['hipsAttachGrp'] = hipsAttachGrp
 
     def buildFK(self):
 
@@ -263,7 +193,7 @@ class Spine():
         mc.parent(fk_root_jnt, self.rigmodule.jointsGrp)
         mc.parent(fk_chest_jnt, fkSpineJoints[-1])
 
-        # Make fkJoints list to return
+        # Make ikJoints list to return
         fkJoints = [fk_root_jnt]
         for jnt in fkSpineJoints:
             fkJoints.append(jnt)
@@ -275,12 +205,11 @@ class Spine():
 
         return {'joints': fkJoints, 'controls': controls, 'root': fk_root_jnt, 'chest': fk_chest_jnt }
 
-
     def buildIK(self ):
 
         '''
         Create an IK rig. Duplicates deformation joints, creates an IK spline rig, and returns
-        library of objects
+        dictionary of objects
         '''
 
         # duplicate spine joints to make IK spine joints
@@ -320,7 +249,7 @@ class Spine():
                                       rotateTo = ikSpineJoints[-1], color = 'cyan',
                                       scale = self.rigScale * 2, shape = 'cube', parent = self.rigmodule.controlsGrp)
 
-        # Create hybrid FK drivers
+        '''# Create hybrid FK drivers
         middleCtrlHybridFK = control.Control(prefix='{}_mid_Forward'.format(self.prefix),
                                              rotateTo=middleCtrlIK.C, color='yellow',
                                              scale=self.rigScale * 1.7, shape='circleX',
@@ -330,18 +259,35 @@ class Spine():
                                             translateTo = ikSpineJoints[-1],
                                             rotateTo=chestCtrlIK.C, color='yellow',
                                             scale=self.rigScale * 2, shape='circleX',
-                                            parent=self.rigmodule.controlsGrp)
+                                            parent=self.rigmodule.controlsGrp)'''
+
+        # Make hybrid FK Controls which will drive IK controls
+        fkBackCtr = control.Control(prefix='{}_backFK'.format(self.prefix), translateTo = ik_root_jnt,
+                                    rotateTo= ik_root_jnt,
+                                    scale=self.rigScale * 2, shape='circleX', parent = self.rigmodule.controlsGrp)
+
+        fkFrontCtr = control.Control(prefix='{}_frontFK'.format(self.prefix), translateTo = ik_root_jnt,
+                                     rotateTo = ik_root_jnt,
+                                     scale=self.rigScale * 2, shape='circleX', parent = self.rigmodule.controlsGrp)
+
+        fkTorsoCtr = control.Control(prefix='{}_torso'.format(self.prefix), translateTo = ikSpineJoints[4],
+                                     rotateTo = ikSpineJoints[4],
+                                     scale=self.rigScale * 2, shape='circleX', parent = self.rigmodule.controlsGrp)
 
 
         # position middle control
         mc.delete(mc.pointConstraint(chestCtrlIK.C, hipsCtrlIK.C, middleCtrlIK.Off, mo = 0))
-        mc.delete(mc.pointConstraint(chestCtrlIK.C, hipsCtrlIK.C, middleCtrlHybridFK.Off, mo=0))
+        #mc.delete(mc.pointConstraint(chestCtrlIK.C, hipsCtrlIK.C, middleCtrlHybridFK.Off, mo=0))
 
-        # translate hybrid drivers so they are below the ik ones a bit
-        mc.move( self.rigScale * -0.5, middleCtrlHybridFK.Off, x=True, os=1, r = 1)
-        mc.move(  self.rigScale * -1.5, chestCtrlHybridFK.Off, x=True, os=1, r = 1, wd = 1)
+        # position hybrid drivers
+        mc.delete(mc.pointConstraint(middleCtrlIK.C, hipsCtrlIK.C, fkBackCtr.Off, mo=0))
+        mc.delete(mc.pointConstraint(middleCtrlIK.C, hipsCtrlIK.C, fkFrontCtr.Off, mo=0))
 
-        controls = [hipsCtrlIK, middleCtrlIK, chestCtrlIK, middleCtrlHybridFK, chestCtrlHybridFK]
+        # move front hybrid control cvs
+        control._translateCtrlShape(fkFrontCtr, axis = 'z', value = 1.0)
+        #mc.move(  self.rigScale * -1.5, chestCtrlHybridFK.Off, x=True, os=1, r = 1, wd = 1)
+
+        controls = [hipsCtrlIK, middleCtrlIK, chestCtrlIK, fkBackCtr, fkFrontCtr, fkTorsoCtr]
 
 
         # Create empty groups to drive middle control
@@ -356,9 +302,11 @@ class Spine():
 
 
         # Parent IK controls to hybrid FK controls
-        mc.parent(chestCtrlIK.Off, chestCtrlHybridFK.C)
-        mc.parent(middleCtrlIK.Off, middleCtrlHybridFK.C)
-        mc.parent(chestCtrlHybridFK.Off, middleCtrlHybridFK.C)
+        mc.parent(chestCtrlIK.Off, fkTorsoCtr.C)
+        mc.parent(middleCtrlIK.Off, fkFrontCtr.C)
+        mc.parent(hipsCtrlIK.Off, fkBackCtr.C)
+        mc.parent(fkTorsoCtr.Off, fkFrontCtr.C)
+
 
         # make locators to drive spine curve clusters
 
@@ -400,30 +348,38 @@ class Spine():
         mc.parentConstraint(middleCtrlIK.C, spineLocatorOffsets[1], mo=False)
         mc.parentConstraint(chestCtrlIK.C, spineLocatorOffsets[2], mo=False)
 
+
+
         # connect spine CV drivers to locators at hips, chest, and middle
         # cv 0
         mc.parentConstraint(spineLocators[0], driverLocatorOffsets[0], mo=True)
-        # cv 3
-        mc.parentConstraint(spineLocators[1], driverLocatorOffsets[3], mo=True)
-        # cv 6
-        mc.parentConstraint(spineLocators[2], driverLocatorOffsets[6], mo=True)
+        # cv 4
+        mc.parentConstraint(spineLocators[1], driverLocatorOffsets[4], mo=True)
+        # cv 8
+        mc.parentConstraint(spineLocators[2], driverLocatorOffsets[8], mo=True)
 
-        # cv 1
-        mc.parentConstraint(spineLocators[0], spineLocators[1], driverLocatorOffsets[1], mo=True)
-        mc.parentConstraint(spineLocators[0], driverLocatorOffsets[1], e=True, w=0.66)
-        mc.parentConstraint(spineLocators[1], driverLocatorOffsets[1], e=True, w=0.34)
         # cv 2
         mc.parentConstraint(spineLocators[0], spineLocators[1], driverLocatorOffsets[2], mo=True)
-        mc.parentConstraint(spineLocators[0], driverLocatorOffsets[2], e=True, w=0.34)
-        mc.parentConstraint(spineLocators[1], driverLocatorOffsets[2], e=True, w=0.66)
-        # cv 4
-        mc.parentConstraint(spineLocators[1], spineLocators[2], driverLocatorOffsets[4], mo=True)
-        mc.parentConstraint(spineLocators[1], driverLocatorOffsets[4], e=True, w=0.66)
-        mc.parentConstraint(spineLocators[2], driverLocatorOffsets[4], e=True, w=0.34)
+        mc.parentConstraint(spineLocators[0], driverLocatorOffsets[2], e=True, w=0.66)
+        mc.parentConstraint(spineLocators[1], driverLocatorOffsets[2], e=True, w=0.34)
+        # cv 3
+        mc.parentConstraint(spineLocators[0], spineLocators[1], driverLocatorOffsets[3], mo=True)
+        mc.parentConstraint(spineLocators[0], driverLocatorOffsets[3], e=True, w=0.34)
+        mc.parentConstraint(spineLocators[1], driverLocatorOffsets[3], e=True, w=0.66)
         # cv 5
         mc.parentConstraint(spineLocators[1], spineLocators[2], driverLocatorOffsets[5], mo=True)
-        mc.parentConstraint(spineLocators[1], driverLocatorOffsets[5], e=True, w=0.34)
-        mc.parentConstraint(spineLocators[2], driverLocatorOffsets[5], e=True, w=0.66)
+        mc.parentConstraint(spineLocators[1], driverLocatorOffsets[5], e=True, w=0.66)
+        mc.parentConstraint(spineLocators[2], driverLocatorOffsets[5], e=True, w=0.34)
+        # cv 6
+        mc.parentConstraint(spineLocators[1], spineLocators[2], driverLocatorOffsets[6], mo=True)
+        mc.parentConstraint(spineLocators[1], driverLocatorOffsets[6], e=True, w=0.34)
+        mc.parentConstraint(spineLocators[2], driverLocatorOffsets[6], e=True, w=0.66)
+
+        # cv 1
+        mc.parentConstraint(spineLocators[0], driverLocatorOffsets[1], mo=True)
+        # cv 7
+        mc.parentConstraint(spineLocators[2], driverLocatorOffsets[7], mo=True)
+
 
         # make IK handle
 

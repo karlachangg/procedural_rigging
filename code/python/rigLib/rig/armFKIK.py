@@ -529,11 +529,11 @@ class Arm():
 
         # Get the original length of the upper and lower arm joints
 
-        if self.forwardAxis == 'x' or '-x':
+        if 'x' in self.forwardAxis:
             lengthAxisAttr = 'tx'
-        elif self.forwardAxis == 'y' or '-y':
+        elif 'y' in self.forwardAxis:
             lengthAxisAttr = 'ty'
-        elif self.forwardAxis == 'z' or '-z':
+        elif 'z' in self.forwardAxis:
             lengthAxisAttr = 'tz'
 
         upperArm_length = mc.getAttr('{}.{}'.format(ikJoints[1], lengthAxisAttr))

@@ -19,7 +19,7 @@ def build(
         smallestScalePercent = 1.0,
         lockChannels = ['s', 'v'],
         offsets = ['null'],
-        color = 'yellow'
+        color = ''
         ):
 
     """
@@ -38,6 +38,8 @@ def build(
     controlScaleIncrement = (1.0 - smallestScalePercent) / len(joints)
     #mainCtrScaleFactor = 10
     jointConstraints = []
+
+    
 
     for i in range(len(joints)):
 

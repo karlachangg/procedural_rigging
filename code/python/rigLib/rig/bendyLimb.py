@@ -77,7 +77,7 @@ class BendyLimb():
         mc.hide(bendCurve)
 
         # Make bendy controls
-        # I'd like to make the number of controls procedural but for now lets hardcode it at 3
+        # I'd like to make the number of controls procedural but for now lets hardcode it at 2
 
 
 

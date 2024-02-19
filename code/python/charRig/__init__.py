@@ -4,3 +4,4 @@ from . import biped
 from . import quadruped
 from . import rhino
 from . import tortoise
+from . import dog

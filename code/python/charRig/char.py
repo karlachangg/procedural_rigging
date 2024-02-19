@@ -18,9 +18,9 @@ class Character:
         self.characterName = characterName
         self.sceneScale = sceneScale
         self.projectPath = project.mainProjectPath
-        self.modelFilePath = '%s/%s/rig/model/%s_model.mb'
-        self.jointFilePath = '%s/%s/rig/build/%s_skeleton.mb'
-        self.wiresFilePath = '%s/%s/rig/build/%s_wires.mb'
+        self.modelFilePath = '%s/%s/' + project.modelDir + '/%s_model.mb'
+        self.jointFilePath = '%s/%s/' + project.rigBuildDir +'/%s_skeleton.mb'
+        self.wiresFilePath = '%s/%s/' + project.rigBuildDir +'/%s_wires.mb'
         self.baseRig = module.Base(characterName = self.characterName, scale = self.sceneScale )
         self.skeletonGrp = 'skeleton_grp'
 
@@ -52,7 +52,7 @@ class Character:
             mc.file(wiresFile, i=1)
 
         # parent model
-        modelGrp = '%s_model_grp' % self.characterName
+        modelGrp = project.modelGrp % self.characterName
         mc.parent( modelGrp, self.baseRig.modelGrp)
 
 
