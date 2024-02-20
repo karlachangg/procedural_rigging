@@ -4,12 +4,7 @@ reverse foot rig
 
 import maya.cmds as mc
 
-
-from ..base import module
 from ..base import control
-
-from ..utils import joint
-from ..utils import name
 
 class Foot():
 
@@ -18,49 +13,56 @@ class Foot():
             heelLoc,
             innerLoc,
             outerLoc,
-            legIKH,
             footCtr,
             parentCtr,
-            measureLeg_end_node,
+            ikGroupToDrive,
+            rollAxis = 'x',
+            rockAxis = 'z',
             prefix = 'foot',
             side = 'l',
-            forwardAxis='x',
-            rollAxis='x',
-            rockAxis='z',
             rigScale = 1.0,
-            baseRig = None
+            baseRig = None,
+
             ):
 
         """
-        :param legJoints: list(str), hip - knee - ankle
-        :param toeJoints: list(str), toe - toeEnd
-        :param hipPivotJoint: str, hip position joint
-        :param heelLoc: str, heel position locator
-        :param prefix: str, prefix to name new objects, INCLUDING SIDE
+        :param footJoints: list(str), ankle - ballPivot - toeEnd
+        :param heelLoc: str, locator at the heel pivot
+        :param innerLoc: str, locator at the inner rocking pivot
+        :param outerLoc: str, locator at the outer rocking pivot
+        :param footCtr: control object, Limb ik control on which to add the rock and roll attributes
+        :param parentCtr: control object, Control to parent the foot controls to
+        :param ikGroupToDrive: str, Group of ik limb items which should move with the reverse foot roll
+        :param rollAxis: str, axis to roll ball and toe joints UP. Default "x"
+        :param rockAxis: str, axis to roll outer pivot outwards. Default "z"
+        :param prefix: str, prefix to name new objects
+        :param side: str, side notation to add to prefix
         :param rigScale: float, scale factor for size of controls
         :param baseRig: instance of base.module.Base class
+
         :return: dictionary with rig module objects
         """
 
-        self.footJoints = footJoints
-        self.heelLoc = heelLoc
-        self.innerLoc = innerLoc
-        self.outerLoc = outerLoc
-        self.legIKH = legIKH
+        self.footJoints = []
+
+        for jnt in footJoints:
+            newJnt = side + '_' + jnt
+            self.footJoints.append(newJnt)
+
+        self.heelLoc = side + '_' + heelLoc
+        self.innerLoc = side + '_' + innerLoc
+        self.outerLoc = side + '_' + outerLoc
+
         self.footCtr = footCtr
         self.parentCtr = parentCtr
-        self.measureLeg_end_node = measureLeg_end_node
+        self.ikGroupToDrive = ikGroupToDrive
         self.rollAxis = rollAxis
         self.rockAxis = rockAxis
-        self.prefix =  prefix
+        self.prefix =  side + '_' + prefix
         self.side = side
-        self.forwardAxis = forwardAxis
         self.rigScale = rigScale
         self.baseRig = baseRig
 
-        # make rig module
-
-        #self.rigmodule = module.Module(prefix=self.prefix, baseObj=self.baseRig)
 
     def build(self):
 
@@ -85,6 +87,8 @@ class Foot():
 
         mc.parent(self.heelLoc, heelCtr.C)
         mc.hide(self.heelLoc)
+
+        # Create groups for inner and outer locators
 
         innerPivot_Grp = self.innerLoc + '_grp'
         outerPivot_Grp = self.outerLoc + '_grp'
@@ -114,9 +118,6 @@ class Foot():
         mc.parent(ball_IKH, ballCtr.C)
         mc.parent(toe_IKH, toeCtr.C)
 
-        for ikHandle in self.legIKH:
-            mc.parent(ikHandle, ballCtr.C)
-
         # Set up parenting structure
         mc.parent(ballCtr.Off, toeEndCtr.C)
         mc.parent(toeCtr.Off, toeEndCtr.C)
@@ -130,8 +131,13 @@ class Foot():
         mc.parent(innerPivot_Grp, footRigGrp)
         mc.parent(footRigGrp, self.parentCtr.C)
 
-        # parent the node we use to measure the leg length to the ball control. Because this will give us a more accurate reading
-        mc.parent(self.measureLeg_end_node, ballCtr.C)
+
+
+        # Delete the constraint on the ikGroup
+        mc.delete(mc.listRelatives(self.ikGroupToDrive, c=1, type='parentConstraint')[0])
+        # Drive the ikGroup from the limb to the ballCtr.C
+        mc.parentConstraint(ballCtr.C, self.ikGroupToDrive, mo = 1)
+
 
         # Set up Roll
         roll_attr = 'Roll'
@@ -292,13 +298,13 @@ class Foot():
         rock_attr = 'Rock'
         mc.addAttr(self.footCtr.C, ln=rock_attr, at='double', dv=0, k=1)
 
-        if self.rockAxis == 'x' or self.rockAxis == '-x':
+        if 'x' in self.rockAxis:
             rockAxisAttr = 'rotateX'
 
-        elif self.rockAxis == 'y' or self.rockAxis == '-y':
+        elif 'y' in self.rockAxis:
             rockAxisAttr = 'rotateY'
 
-        elif self.rockAxis == 'z' or self.rockAxis == '-z':
+        elif 'z' in self.rockAxis:
             rockAxisAttr = 'rotateZ'
 
         rotateOutNegative = False
@@ -314,70 +320,37 @@ class Foot():
             rotateInnerDirection = -1
 
 
+        # Set up SDK to rock outer pivot
+        mc.setDrivenKeyframe('{}.{}'.format(outerPivot_Grp, rockAxisAttr),
+                             currentDriver='{}.{}'.format(self.footCtr.C, rock_attr),
+                             driverValue=0,
+                             value=0,
+                             inTangentType='linear',
+                             outTangentType='linear')
 
-        if self.side == 'l':
+        mc.setDrivenKeyframe('{}.{}'.format(outerPivot_Grp, rockAxisAttr),
+                             currentDriver='{}.{}'.format(self.footCtr.C, rock_attr),
+                             driverValue = 90,
+                             value = 90 * rotateOuterDirection,
+                             inTangentType='linear',
+                             outTangentType='linear')
 
-            # Set up SDK to rock outer pivot
-            mc.setDrivenKeyframe('{}.{}'.format(outerPivot_Grp, rockAxisAttr),
-                                 currentDriver='{}.{}'.format(self.footCtr.C, rock_attr),
-                                 driverValue=0,
-                                 value=0,
-                                 inTangentType='linear',
-                                 outTangentType='linear')
+        # Set up SDK to rock inner pivot
+        mc.setDrivenKeyframe('{}.{}'.format(innerPivot_Grp, rockAxisAttr),
+                             currentDriver='{}.{}'.format(self.footCtr.C, rock_attr),
+                             driverValue=0,
+                             value=0,
+                             inTangentType='linear',
+                             outTangentType='linear')
 
-            mc.setDrivenKeyframe('{}.{}'.format(outerPivot_Grp, rockAxisAttr),
-                                 currentDriver='{}.{}'.format(self.footCtr.C, rock_attr),
-                                 driverValue = 90,
-                                 value = 90 * rotateOuterDirection,
-                                 inTangentType='linear',
-                                 outTangentType='linear')
+        mc.setDrivenKeyframe('{}.{}'.format(innerPivot_Grp, rockAxisAttr),
+                             currentDriver='{}.{}'.format(self.footCtr.C, rock_attr),
+                             driverValue= -90,
+                             value = 90 * rotateInnerDirection,
+                             inTangentType='linear',
+                             outTangentType='linear')
 
-            # Set up SDK to rock inner pivot
-            mc.setDrivenKeyframe('{}.{}'.format(innerPivot_Grp, rockAxisAttr),
-                                 currentDriver='{}.{}'.format(self.footCtr.C, rock_attr),
-                                 driverValue=0,
-                                 value=0,
-                                 inTangentType='linear',
-                                 outTangentType='linear')
 
-            mc.setDrivenKeyframe('{}.{}'.format(innerPivot_Grp, rockAxisAttr),
-                                 currentDriver='{}.{}'.format(self.footCtr.C, rock_attr),
-                                 driverValue= -90,
-                                 value = 90 * rotateInnerDirection,
-                                 inTangentType='linear',
-                                 outTangentType='linear')
-
-        elif self.side == 'r':
-
-            # Set up SDK to rock outer pivot
-            mc.setDrivenKeyframe('{}.{}'.format(outerPivot_Grp, rockAxisAttr),
-                                 currentDriver='{}.{}'.format(self.footCtr.C, rock_attr),
-                                 driverValue=0,
-                                 value=0,
-                                 inTangentType='linear',
-                                 outTangentType='linear')
-
-            mc.setDrivenKeyframe('{}.{}'.format(outerPivot_Grp, rockAxisAttr),
-                                 currentDriver='{}.{}'.format(self.footCtr.C, rock_attr),
-                                 driverValue = 90,
-                                 value = 90 * rotateOuterDirection,
-                                 inTangentType='linear',
-                                 outTangentType='linear')
-
-            # Set up SDK to rock inner pivot
-            mc.setDrivenKeyframe('{}.{}'.format(innerPivot_Grp, rockAxisAttr),
-                                 currentDriver='{}.{}'.format(self.footCtr.C, rock_attr),
-                                 driverValue=0,
-                                 value=0,
-                                 inTangentType='linear',
-                                 outTangentType='linear')
-
-            mc.setDrivenKeyframe('{}.{}'.format(innerPivot_Grp, rockAxisAttr),
-                                 currentDriver='{}.{}'.format(self.footCtr.C, rock_attr),
-                                 driverValue = -90,
-                                 value = 90 * rotateInnerDirection * -1,
-                                 inTangentType='linear',
-                                 outTangentType='linear')
 
         # Set some class properties we can call later
 
