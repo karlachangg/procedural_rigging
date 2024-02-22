@@ -139,7 +139,7 @@ class Spine():
 
         for i in range(len(defSpineJoints)):
 
-            blendNode = mc.shadingNode('blendColors', asUtility=True, n='{}_jointScale_blend{}'.format(self.prefix, 1))
+            blendNode = mc.shadingNode('blendColors', asUtility=True, n='{}_jointScale_blend{}'.format(self.prefix, i))
             mc.connectAttr('{}.{}'.format(switchCtr.C, switch_attr), '{}.blender'.format(blendNode))
 
             mc.connectAttr('{}.sx'.format(ikRig['joints'][i] ), '{}.color1.color1R'.format(blendNode) )

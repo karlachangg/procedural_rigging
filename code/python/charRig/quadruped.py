@@ -10,11 +10,11 @@ from rigLib.rig import spine
 from rigLib.rig import neck
 from rigLib.rig import tail
 from rigLib.rig import ikChain
-from rigLib.rig import legFKIK
-from rigLib.rig import armFKIK
+from rigLib.rig import leg
+from rigLib.rig import arm
 from rigLib.rig import hand
 from rigLib.rig import bendyLimb
-from rigLib.rig import reverseFoot
+from rigLib.rig import foot
 
 from rigLib.utils import joint
 
@@ -101,7 +101,7 @@ class Quadruped(char.Character):
         innerLoc = 'frontFoot_inner'
         outerLoc = 'frontFoot_outer'
 
-        self.leftArmRig = armFKIK.Arm(
+        self.leftArmRig = arm.Arm(
             armJoints=armJoints,
             scapulaJoint=scapulaJnt,
             prefix='frontLeg',
@@ -129,7 +129,7 @@ class Quadruped(char.Character):
         mc.parentConstraint(spineRig.rigParts['chestAttachGrp'], self.leftArmRig.rigParts['bodyAttachGrp'], mo=1)
 
         # Right Front Leg
-        self.rightArmRig = armFKIK.Arm(
+        self.rightArmRig = arm.Arm(
             armJoints = armJoints,
             scapulaJoint = scapulaJnt,
             prefix = 'frontLeg',
@@ -165,7 +165,7 @@ class Quadruped(char.Character):
         inner_loc = 'backFoot_inner'
         outer_loc = 'backFoot_outer'
 
-        leftLegRig = legFKIK.Leg(
+        leftLegRig = leg.Leg(
             type = '3bones',
             legJoints=legJoints,
             toeJoints = footJoints,
@@ -192,7 +192,7 @@ class Quadruped(char.Character):
                              )
 
         # Right Back Leg
-        rightLegRig = legFKIK.Leg(
+        rightLegRig = leg.Leg(
             type='3bones',
             legJoints=legJoints,
             toeJoints = footJoints,

@@ -3,13 +3,12 @@ from . import quadSpine
 from . import neck
 from . import ikChain
 from . import leg
-from . import legFKIK
 from . import fkChain
-from . import armFKIK
+from . import arm
 from . import hand
 from . import bendyLimb
 from . import tail
-from . import reverseFoot
+from . import foot
 from . import fingerCurl
 from . import lips
 from . import ribbon

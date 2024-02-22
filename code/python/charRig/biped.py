@@ -8,10 +8,12 @@ from . import char
 from rigLib.rig import spine
 from rigLib.rig import neck
 from rigLib.rig import ikChain
-from rigLib.rig import legFKIK
-from rigLib.rig import armFKIK
+from rigLib.rig import leg
+from rigLib.rig import arm
+from rigLib.rig import foot
 from rigLib.rig import hand
 from rigLib.base import control
+
 
 
 import maya.cmds as mc
@@ -80,14 +82,10 @@ class Biped(char.Character):
         inner_loc = 'foot_inner_loc'
         outer_loc = 'foot_outer_loc'
 
-        self.leftLegRig = legFKIK.Leg(
+        self.leftLegRig = leg.Leg(
             type = '2bones',
             legJoints = legJoints,
-            toeJoints = toeJoints,
             hipPivotJoint = hipPivotJoint,
-            heelLoc = heel_loc,
-            innerLoc = inner_loc,
-            outerLoc = outer_loc,
             prefix = 'leg',
             side = 'l',
             kneeDirection = 'z',
@@ -99,13 +97,9 @@ class Biped(char.Character):
 
         self.leftLegRig.build()
 
-        self.rightLegRig = legFKIK.Leg(
+        self.rightLegRig = leg.Leg(
             type = '2bones',
             legJoints = legJoints,
-            toeJoints = toeJoints,
-            heelLoc=heel_loc,
-            innerLoc=inner_loc,
-            outerLoc=outer_loc,
             hipPivotJoint = hipPivotJoint,
             prefix = 'leg',
             side = 'r',
@@ -122,7 +116,7 @@ class Biped(char.Character):
         armJoints = ['shoulder_jnt', 'elbow_jnt', 'wrist_jnt']
         scapulaJnt = 'clavicle_jnt'
 
-        self.leftArmRig = armFKIK.Arm(
+        self.leftArmRig = arm.Arm(
             armJoints = armJoints,
             scapulaJoint = scapulaJnt,
             prefix = 'arm',
@@ -141,7 +135,7 @@ class Biped(char.Character):
         # attach left arm to spine
         mc.parentConstraint(self.spineRig.rigParts['chestAttachGrp'], self.leftArmRig.rigParts['bodyAttachGrp'], mo=1)
 
-        self.rightArmRig = armFKIK.Arm(
+        self.rightArmRig = arm.Arm(
             armJoints = armJoints,
             scapulaJoint = scapulaJnt,
             prefix = 'arm',
@@ -194,6 +188,71 @@ class Biped(char.Character):
         )
         rightHandRig.build()
 
+        # left foot
+
+        toeJoints = ['toe_jnt', 'toe_end_jnt']
+        heelLoc = 'heel_loc'
+        innerLoc = 'foot_inner_loc'
+        outerLoc = 'foot_outer_loc'
+
+        self.leftFootRig = foot.Foot(
+
+            toeJoints = toeJoints,
+            heelLoc = heelLoc,
+            innerLoc = innerLoc,
+            outerLoc = outerLoc,
+
+            fkAnkleJoint = self.leftLegRig.rigParts['fkJoints'][-1],
+            ikAnkleJoint  = self.leftLegRig.rigParts['ikJoints'][-1],
+            fkFootCtr  = self.leftLegRig.rigParts['fkControls'][-1],
+            ikFootCtr = self.leftLegRig.rigParts['ikControl'],
+            ikParentCtr = self.leftLegRig.rigParts['ikControl'],
+            ikGroupToDrive = self.leftLegRig.rigParts['reverseFootDriven'],
+            switchAttr = self.leftLegRig.rigParts['FKIKSwitchAttr'],
+
+            prefix = 'foot',
+            side = 'l',
+            rollAxis = 'x',
+            rockAxis = '-z',
+            rigScale = self.sceneScale,
+            baseRig = baseRig
+        )
+
+        self.leftFootRig.build()
+
+        # right foot
+
+        self.rightFootRig = foot.Foot(
+
+            toeJoints = toeJoints,
+            heelLoc = heelLoc,
+            innerLoc = innerLoc,
+            outerLoc = outerLoc,
+
+            fkAnkleJoint = self.rightLegRig.rigParts['fkJoints'][-1],
+            ikAnkleJoint = self.rightLegRig.rigParts['ikJoints'][-1],
+            fkFootCtr = self.rightLegRig.rigParts['fkControls'][-1],
+            ikFootCtr = self.rightLegRig.rigParts['ikControl'],
+            ikParentCtr = self.rightLegRig.rigParts['ikControl'],
+            ikGroupToDrive = self.rightLegRig.rigParts['reverseFootDriven'],
+            switchAttr = self.rightLegRig.rigParts['FKIKSwitchAttr'],
+
+            prefix = 'foot',
+            side = 'r',
+            rollAxis = 'x',
+            rockAxis = 'z',
+            rigScale = self.sceneScale,
+            baseRig = baseRig
+        )
+
+        self.rightFootRig.build()
+
+
+
+
+
+
+
     def setInitialSettings(self):
 
         #  Set arms to a T pose
@@ -204,6 +263,9 @@ class Biped(char.Character):
 
 
         self.rightArmRig.setInitialValues(FKIKMode=1, Stretchy=1 )
+
+
+
 
 
     def adjustControlShapes(self):

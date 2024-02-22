@@ -11,11 +11,11 @@ from rigLib.rig import spine
 from rigLib.rig import neck
 from rigLib.rig import tail
 from rigLib.rig import ikChain
-from rigLib.rig import legFKIK
-from rigLib.rig import armFKIK
+from rigLib.rig import leg
+from rigLib.rig import arm
 from rigLib.rig import hand
 from rigLib.rig import bendyLimb
-from rigLib.rig import reverseFoot
+from rigLib.rig import foot
 from rigLib.base import control
 from rigLib.base import module
 
@@ -137,12 +137,8 @@ class Tortoise(char.Character):
 
         armJoints = ['shoulder_jnt', 'elbow_jnt', 'wrist_jnt']
         scapulaJnt = 'scapula_jnt'
-        toeJoints = ['frontToes_jnt', 'frontToesEnd_jnt']
-        heelLoc = 'frontFoot_heel'
-        innerLoc = 'frontFoot_inner'
-        outerLoc = 'frontFoot_outer'
 
-        self.leftArmRig = armFKIK.Arm(
+        self.leftArmRig = arm.Arm(
             armJoints=armJoints,
             scapulaJoint=scapulaJnt,
             prefix='frontLeg',
@@ -152,13 +148,6 @@ class Tortoise(char.Character):
             forwardAxis = 'x',
             moveSwitchCtr = 'x',
             ikCtrOrient = 'world',
-            buildFoot = True,
-            toeJoints = toeJoints,
-            heelLoc = heelLoc,
-            innerLoc = innerLoc,
-            outerLoc = outerLoc,
-            rollAxis = 'x',
-            rockAxis = '-z',
             rigScale = self.sceneScale,
             baseRig=baseRig
         )
@@ -172,7 +161,7 @@ class Tortoise(char.Character):
         mc.parentConstraint( chestAttachGrp, self.leftArmRig.rigParts['bodyAttachGrp'], mo=1)
 
         # Right Front Leg
-        self.rightArmRig = armFKIK.Arm(
+        self.rightArmRig = arm.Arm(
             armJoints = armJoints,
             scapulaJoint = scapulaJnt,
             prefix = 'frontLeg',
@@ -182,13 +171,6 @@ class Tortoise(char.Character):
             forwardAxis = '-x',
             moveSwitchCtr = '-x',
             ikCtrOrient = 'world',
-            buildFoot = True,
-            toeJoints = toeJoints,
-            heelLoc = heelLoc,
-            innerLoc = innerLoc,
-            outerLoc = outerLoc,
-            rollAxis = 'x',
-            rockAxis = '-z',
             rigScale = self.sceneScale,
             baseRig = baseRig
         )
@@ -204,12 +186,8 @@ class Tortoise(char.Character):
 
         legJoints = ['hip_jnt', 'knee_jnt', 'ankle_jnt']
         hipScapula = 'hip_pivot_jnt'
-        backLegToeJoints = ['backToe_jnt', 'backToeEnd_jnt']
-        backHeelLoc = 'backFoot_heel'
-        backInnerLoc = 'backFoot_inner'
-        backOuterLoc = 'backFoot_outer'
 
-        self.leftLegRig = armFKIK.Arm(
+        self.leftLegRig = arm.Arm(
             armJoints = legJoints,
             scapulaJoint = hipScapula,
             prefix = 'backLeg',
@@ -219,22 +197,11 @@ class Tortoise(char.Character):
             forwardAxis = 'x',
             moveSwitchCtr = '-z',
             ikCtrOrient = 'world',
-            buildFoot = True,
-            toeJoints = backLegToeJoints,
-            heelLoc = backHeelLoc,
-            innerLoc = backInnerLoc,
-            outerLoc = backOuterLoc,
-            rollAxis = 'x',
-            rockAxis = '-z',
             rigScale = self.sceneScale,
             baseRig = baseRig
             )
 
         self.leftLegRig.build()
-
-
-
-
 
         # attach left leg to spine
         mc.parentConstraint(hipsAttachGrp, self.leftLegRig.rigParts['bodyAttachGrp'], mo=1)
@@ -242,7 +209,7 @@ class Tortoise(char.Character):
 
 
         # Right leg
-        self.rightLegRig = armFKIK.Arm(
+        self.rightLegRig = arm.Arm(
 
             armJoints=legJoints,
             scapulaJoint=hipScapula,
@@ -253,23 +220,145 @@ class Tortoise(char.Character):
             forwardAxis = '-x',
             moveSwitchCtr = '-z',
             ikCtrOrient = 'world',
-            buildFoot = True,
-            toeJoints = backLegToeJoints,
-            heelLoc = backHeelLoc,
-            innerLoc = backInnerLoc,
-            outerLoc = backOuterLoc,
-            rollAxis = 'x',
-            rockAxis = '-z',
             rigScale = self.sceneScale,
             baseRig = baseRig
         )
 
         self.rightLegRig.build()
 
-
-
         # attach right leg to spine
         mc.parentConstraint(hipsAttachGrp, self.rightLegRig.rigParts['bodyAttachGrp'], mo=1)
+
+
+
+
+        # left front foot
+        toeJoints = ['frontToes_jnt', 'frontToesEnd_jnt']
+        heelLoc = 'frontFoot_heel'
+        innerLoc = 'frontFoot_inner'
+        outerLoc = 'frontFoot_outer'
+
+        self.leftFrontFootRig = foot.Foot(
+            toeJoints=toeJoints,
+            heelLoc=heelLoc,
+            innerLoc=innerLoc,
+            outerLoc=outerLoc,
+
+            fkAnkleJoint=self.leftArmRig.rigParts['fkJoints'][-1],
+            ikAnkleJoint=self.leftArmRig.rigParts['ikJoints'][-1],
+            fkFootCtr=self.leftArmRig.rigParts['fkControls'][-1],
+
+            ikFootCtr=self.leftArmRig.rigParts['ikControl'],
+            ikParentCtr=self.leftArmRig.rigParts['ikGimbalControl'],
+            switchAttr=self.leftArmRig.rigParts['FKIKSwitchAttr'],
+
+            ikGroupToDrive=self.leftArmRig.rigParts['reverseFootDriven'],
+
+            prefix='frontFoot',
+            side='l',
+
+            rollAxis='x',
+            rockAxis='-z',
+            rigScale=self.sceneScale,
+            baseRig=baseRig
+        )
+
+        self.leftFrontFootRig.build()
+
+        # right front foot
+
+        self.rightFrontFootRig = foot.Foot(
+            toeJoints=toeJoints,
+            heelLoc=heelLoc,
+            innerLoc=innerLoc,
+            outerLoc=outerLoc,
+
+            fkAnkleJoint=self.rightArmRig.rigParts['fkJoints'][-1],
+            ikAnkleJoint=self.rightArmRig.rigParts['ikJoints'][-1],
+            fkFootCtr=self.rightArmRig.rigParts['fkControls'][-1],
+
+            ikFootCtr=self.rightArmRig.rigParts['ikControl'],
+            ikParentCtr=self.rightArmRig.rigParts['ikGimbalControl'],
+            switchAttr=self.rightArmRig.rigParts['FKIKSwitchAttr'],
+
+            ikGroupToDrive=self.rightArmRig.rigParts['reverseFootDriven'],
+
+            prefix='frontFoot',
+            side='r',
+
+            rollAxis='x',
+            rockAxis = 'z',
+            rigScale=self.sceneScale,
+            baseRig=baseRig
+        )
+
+        self.rightFrontFootRig.build()
+
+        # left back foot
+
+        backToeJoints = ['backToe_jnt', 'backToeEnd_jnt']
+        backHeelLoc = 'backFoot_heel'
+        backInnerLoc = 'backFoot_inner'
+        backOuterLoc = 'backFoot_outer'
+
+
+        self.leftBackFootRig = foot.Foot(
+
+            toeJoints=backToeJoints,
+            heelLoc=backHeelLoc,
+            innerLoc=backInnerLoc,
+            outerLoc=backOuterLoc,
+
+            fkAnkleJoint=self.leftLegRig.rigParts['fkJoints'][-1],
+            ikAnkleJoint=self.leftLegRig.rigParts['ikJoints'][-1],
+            fkFootCtr=self.leftLegRig.rigParts['fkControls'][-1],
+
+            ikFootCtr=self.leftLegRig.rigParts['ikControl'],
+            ikParentCtr=self.leftLegRig.rigParts['ikGimbalControl'],
+            switchAttr=self.leftLegRig.rigParts['FKIKSwitchAttr'],
+
+            ikGroupToDrive=self.leftLegRig.rigParts['reverseFootDriven'],
+
+            prefix='backFoot',
+            side='l',
+            rollAxis='x',
+            rockAxis='-z',
+            rigScale=self.sceneScale,
+            baseRig=baseRig
+        )
+
+        self.leftBackFootRig.build()
+
+        # right back foot
+
+        self.rightBackFootRig = foot.Foot(
+            toeJoints=backToeJoints,
+            heelLoc=backHeelLoc,
+            innerLoc=backInnerLoc,
+            outerLoc=backOuterLoc,
+
+            fkAnkleJoint=self.rightLegRig.rigParts['fkJoints'][-1],
+            ikAnkleJoint=self.rightLegRig.rigParts['ikJoints'][-1],
+            fkFootCtr=self.rightLegRig.rigParts['fkControls'][-1],
+
+            ikFootCtr=self.rightLegRig.rigParts['ikControl'],
+            ikParentCtr=self.rightLegRig.rigParts['ikGimbalControl'],
+            switchAttr=self.rightLegRig.rigParts['FKIKSwitchAttr'],
+
+            ikGroupToDrive=self.rightLegRig.rigParts['reverseFootDriven'],
+            prefix='backFoot',
+            side='r',
+            rollAxis='x',
+            rockAxis='z',
+            rigScale=self.sceneScale,
+            baseRig=baseRig
+        )
+
+        self.rightBackFootRig.build()
+
+
+
+
 
         # Build face
         self.buildFace(self.neckRig.rigParts['headAttachGrp'])
@@ -592,16 +681,16 @@ class Tortoise(char.Character):
         control._rotateCtrlShape(self.leftArmRig.rigParts['ikControls'][2], axis='x', value=30)
 
         # Adjust foot controls
-        control._scaleCtrlShape(self.leftArmRig.rigParts['footControls'][0], axis='x,y,z', value=1.5)
-        control._scaleCtrlShape(self.leftArmRig.rigParts['footControls'][1], axis='x,y,z', value=1.5)
+        control._scaleCtrlShape(self.leftFrontFootRig.rigParts['ikControls'][0], axis='x,y,z', value=1.5)
+        control._scaleCtrlShape(self.leftFrontFootRig.rigParts['ikControls'][1], axis='x,y,z', value=1.5)
 
         # Adjust fk controls
         #  wrist
         control._scaleCtrlShape(self.leftArmRig.rigParts['fkControls'][2], axis='x,y,z', value=1.5)
         control._rotateCtrlShape(self.leftArmRig.rigParts['fkControls'][2], axis='x', value=30)
         # toe
-        control._scaleCtrlShape(self.leftArmRig.rigParts['fkControls'][3], axis='x,y,z', value=1.5)
-        control._rotateCtrlShape(self.leftArmRig.rigParts['fkControls'][3], axis='x', value=30)
+        control._scaleCtrlShape(self.leftFrontFootRig.rigParts['fkControls'][0], axis='x,y,z', value=1.5)
+        control._rotateCtrlShape(self.leftFrontFootRig.rigParts['fkControls'][0], axis='x', value=30)
         # elbow
         control._scaleCtrlShape(self.leftArmRig.rigParts['fkControls'][1], axis='x,y,z', value=1.2)
         # shoulder
@@ -631,16 +720,16 @@ class Tortoise(char.Character):
         control._rotateCtrlShape(self.rightArmRig.rigParts['ikControls'][2], axis='x', value=30)
 
         # Adjust foot controls
-        control._scaleCtrlShape(self.rightArmRig.rigParts['footControls'][0], axis='x,y,z', value=1.5)
-        control._scaleCtrlShape(self.rightArmRig.rigParts['footControls'][1], axis='x,y,z', value=1.5)
+        control._scaleCtrlShape(self.rightFrontFootRig.rigParts['ikControls'][0], axis='x,y,z', value=1.5)
+        control._scaleCtrlShape(self.rightFrontFootRig.rigParts['ikControls'][1], axis='x,y,z', value=1.5)
 
         # Adjust fk controls
         #  wrist
         control._scaleCtrlShape(self.rightArmRig.rigParts['fkControls'][2], axis='x,y,z', value=1.5)
         control._rotateCtrlShape(self.rightArmRig.rigParts['fkControls'][2], axis='x', value=30)
         # toe
-        control._scaleCtrlShape(self.rightArmRig.rigParts['fkControls'][3], axis='x,y,z', value=1.5)
-        control._rotateCtrlShape(self.rightArmRig.rigParts['fkControls'][3], axis='x', value=30)
+        control._scaleCtrlShape(self.rightFrontFootRig.rigParts['fkControls'][0], axis='x,y,z', value=1.5)
+        control._rotateCtrlShape(self.rightFrontFootRig.rigParts['fkControls'][0], axis='x', value=30)
         # elbow
         control._scaleCtrlShape(self.rightArmRig.rigParts['fkControls'][1], axis='x,y,z', value=1.2)
         # shoulder
@@ -671,16 +760,16 @@ class Tortoise(char.Character):
         control._rotateCtrlShape(self.leftLegRig.rigParts['ikControls'][2], axis='x', value=60)
 
         # Adjust foot controls
-        control._scaleCtrlShape(self.leftLegRig.rigParts['footControls'][0], axis='x,y,z', value=1.5)
-        control._scaleCtrlShape(self.leftLegRig.rigParts['footControls'][1], axis='x,y,z', value=1.5)
+        control._scaleCtrlShape(self.leftBackFootRig.rigParts['ikControls'][0], axis='x,y,z', value=1.5)
+        control._scaleCtrlShape(self.leftBackFootRig.rigParts['ikControls'][1], axis='x,y,z', value=1.5)
 
         # Adjust fk controls
         #  wrist
         control._scaleCtrlShape(self.leftLegRig.rigParts['fkControls'][2], axis='x,y,z', value=1.2)
         control._rotateCtrlShape(self.leftLegRig.rigParts['fkControls'][2], axis='x', value=60)
         # toe
-        control._scaleCtrlShape(self.leftLegRig.rigParts['fkControls'][3], axis='x,y,z', value=1.5)
-        control._rotateCtrlShape(self.leftLegRig.rigParts['fkControls'][3], axis='x', value=30)
+        control._scaleCtrlShape(self.leftBackFootRig.rigParts['fkControls'][0], axis='x,y,z', value=1.5)
+        control._rotateCtrlShape(self.leftBackFootRig.rigParts['fkControls'][0], axis='x', value=30)
         # elbow
         control._scaleCtrlShape(self.leftLegRig.rigParts['fkControls'][1], axis='x,y,z', value=1.2)
         # shoulder
@@ -715,16 +804,16 @@ class Tortoise(char.Character):
         control._rotateCtrlShape(self.rightLegRig.rigParts['ikControls'][2], axis='x', value=60)
 
         # Adjust foot controls
-        control._scaleCtrlShape(self.rightLegRig.rigParts['footControls'][0], axis='x,y,z', value=1.5)
-        control._scaleCtrlShape(self.rightLegRig.rigParts['footControls'][1], axis='x,y,z', value=1.5)
+        control._scaleCtrlShape(self.rightBackFootRig.rigParts['ikControls'][0], axis='x,y,z', value=1.5)
+        control._scaleCtrlShape(self.rightBackFootRig.rigParts['ikControls'][1], axis='x,y,z', value=1.5)
 
         # Adjust fk controls
         #  wrist
         control._scaleCtrlShape(self.rightLegRig.rigParts['fkControls'][2], axis='x,y,z', value=1.2)
         control._rotateCtrlShape(self.rightLegRig.rigParts['fkControls'][2], axis='x', value=60)
         # toe
-        control._scaleCtrlShape(self.rightLegRig.rigParts['fkControls'][3], axis='x,y,z', value=1.5)
-        control._rotateCtrlShape(self.rightLegRig.rigParts['fkControls'][3], axis='x', value=30)
+        control._scaleCtrlShape(self.rightBackFootRig.rigParts['fkControls'][0], axis='x,y,z', value=1.5)
+        control._rotateCtrlShape(self.rightBackFootRig.rigParts['fkControls'][0], axis='x', value=30)
         # elbow
         control._scaleCtrlShape(self.rightLegRig.rigParts['fkControls'][1], axis='x,y,z', value=1.2)
         # shoulder
@@ -767,14 +856,14 @@ class Tortoise(char.Character):
 
 
         self.leftArmRig.setInitialValues(FKIKMode=1, Stretchy=0)
-        self.leftArmRig.footRig.setInitialValues(BallRollAngle=45, ToeRollAngle=90)
+        self.leftFrontFootRig.setInitialValues(BallRollAngle=45, ToeRollAngle=90)
 
         self.rightArmRig.setInitialValues(FKIKMode=1, Stretchy=0)
-        self.rightArmRig.footRig.setInitialValues(BallRollAngle=0.1, ToeRollAngle=90)
+        self.rightFrontFootRig.setInitialValues(BallRollAngle=0.1, ToeRollAngle=90)
 
         self.leftLegRig.setInitialValues(FKIKMode=1, Stretchy=0)
-        self.leftLegRig.footRig.setInitialValues(BallRollAngle=45, ToeRollAngle=90)
+        self.leftBackFootRig.setInitialValues(BallRollAngle=45, ToeRollAngle=90)
 
         self.rightLegRig.setInitialValues(FKIKMode=1, Stretchy=0)
-        self.rightLegRig.footRig.setInitialValues(BallRollAngle=45, ToeRollAngle=90)
+        self.rightBackFootRig.setInitialValues(BallRollAngle=45, ToeRollAngle=90)
 

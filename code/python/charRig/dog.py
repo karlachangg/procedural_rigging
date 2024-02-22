@@ -10,12 +10,12 @@ from rigLib.rig import quadSpine
 from rigLib.rig import neck
 from rigLib.rig import tail
 from rigLib.rig import ikChain
-from rigLib.rig import legFKIK
-from rigLib.rig import armFKIK
+from rigLib.rig import leg
+from rigLib.rig import arm
 from rigLib.rig import limb
 from rigLib.rig import hand
 from rigLib.rig import bendyLimb
-from rigLib.rig import reverseFoot
+from rigLib.rig import foot
 
 from rigLib.utils import joint
 
@@ -201,18 +201,25 @@ class Dog(char.Character):
                         )
 
         # left front foot
-        footJoints = ['wrist_jnt', 'fingers_1_jnt', 'fingers_2_jnt']
+        toeJoints = ['fingers_1_jnt', 'fingers_2_jnt']
         heelLoc = 'frontFoot_heel'
         innerLoc = 'frontFoot_inner'
         outerLoc = 'frontFoot_outer'
 
-        self.leftFrontFootRig = reverseFoot.Foot(
-            footJoints = footJoints,
+        self.leftFrontFootRig = foot.Foot(
+            toeJoints = toeJoints,
             heelLoc = heelLoc,
             innerLoc = innerLoc,
             outerLoc = outerLoc,
-            footCtr = self.leftArmRig.rigParts['ikControl'],
-            parentCtr = self.leftArmRig.rigParts['ikGimbalControl'],
+
+            fkAnkleJoint=self.leftArmRig.rigParts['fkJoints'][-1],
+            ikAnkleJoint=self.leftArmRig.rigParts['ikJoints'][-1],
+            fkFootCtr=self.leftArmRig.rigParts['fkControls'][-1],
+
+            ikFootCtr=self.leftArmRig.rigParts['ikControl'],
+            ikParentCtr=self.leftArmRig.rigParts['ikGimbalControl'],
+            switchAttr=self.leftArmRig.rigParts['FKIKSwitchAttr'],
+
             ikGroupToDrive = self.leftArmRig.rigParts['reverseFootDriven'],
 
             prefix = 'frontFoot',
@@ -228,13 +235,21 @@ class Dog(char.Character):
 
         # right front foot
 
-        self.rightFrontFootRig = reverseFoot.Foot(
-            footJoints=footJoints,
+        self.rightFrontFootRig = foot.Foot(
+            toeJoints = toeJoints,
             heelLoc=heelLoc,
             innerLoc=innerLoc,
             outerLoc=outerLoc,
-            footCtr=self.rightArmRig.rigParts['ikControl'],
-            parentCtr=self.rightArmRig.rigParts['ikGimbalControl'],
+
+            fkAnkleJoint=self.rightArmRig.rigParts['fkJoints'][-1],
+            ikAnkleJoint=self.rightArmRig.rigParts['ikJoints'][-1],
+            fkFootCtr=self.rightArmRig.rigParts['fkControls'][-1],
+
+            ikFootCtr=self.rightArmRig.rigParts['ikControl'],
+            ikParentCtr=self.rightArmRig.rigParts['ikGimbalControl'],
+            switchAttr=self.rightArmRig.rigParts['FKIKSwitchAttr'],
+
+
             ikGroupToDrive=self.rightArmRig.rigParts['reverseFootDriven'],
 
             prefix='frontFoot',
@@ -250,19 +265,29 @@ class Dog(char.Character):
 
         # left back foot
 
-        backFootJoints = ['ankle_jnt', 'toes_1_jnt', 'toes_2_jnt']
+        backToeJoints = ['toes_1_jnt', 'toes_2_jnt']
         backHeelLoc = 'backFoot_heel'
         backInnerLoc = 'backFoot_inner'
         backOuterLoc = 'backFoot_outer'
 
-        self.leftBackFootRig = reverseFoot.Foot(
-            footJoints = backFootJoints,
+        self.leftBackFootRig = foot.Foot(
+
+            toeJoints = backToeJoints,
             heelLoc = backHeelLoc,
             innerLoc = backInnerLoc,
             outerLoc = backOuterLoc,
-            footCtr = self.leftLegRig.rigParts['ikControl'],
-            parentCtr=self.leftLegRig.rigParts['ikGimbalControl'],
+
+            fkAnkleJoint=self.leftLegRig.rigParts['fkJoints'][-1],
+            ikAnkleJoint=self.leftLegRig.rigParts['ikJoints'][-1],
+            fkFootCtr=self.leftLegRig.rigParts['fkControls'][-1],
+
+            ikFootCtr=self.leftLegRig.rigParts['ikControl'],
+            ikParentCtr=self.leftLegRig.rigParts['ikGimbalControl'],
+            switchAttr=self.leftLegRig.rigParts['FKIKSwitchAttr'],
+
             ikGroupToDrive=self.leftLegRig.rigParts['reverseFootDriven'],
+
+
             prefix='backFoot',
             side='l',
             rollAxis='x',
@@ -275,13 +300,20 @@ class Dog(char.Character):
 
         # right back foot
 
-        self.rightBackFootRig = reverseFoot.Foot(
-            footJoints = backFootJoints,
+        self.rightBackFootRig = foot.Foot(
+            toeJoints = backToeJoints,
             heelLoc = backHeelLoc,
             innerLoc = backInnerLoc,
             outerLoc = backOuterLoc,
-            footCtr = self.rightLegRig.rigParts['ikControl'],
-            parentCtr = self.rightLegRig.rigParts['ikGimbalControl'],
+
+            fkAnkleJoint=self.rightLegRig.rigParts['fkJoints'][-1],
+            ikAnkleJoint=self.rightLegRig.rigParts['ikJoints'][-1],
+            fkFootCtr=self.rightLegRig.rigParts['fkControls'][-1],
+
+            ikFootCtr=self.rightLegRig.rigParts['ikControl'],
+            ikParentCtr=self.rightLegRig.rigParts['ikGimbalControl'],
+            switchAttr=self.rightLegRig.rigParts['FKIKSwitchAttr'],
+
             ikGroupToDrive = self.rightLegRig.rigParts['reverseFootDriven'],
             prefix = 'backFoot',
             side = 'r',

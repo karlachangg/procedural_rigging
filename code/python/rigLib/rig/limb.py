@@ -86,7 +86,10 @@ class Limb():
                          'footAttachGrp': '',
                          'fkControls': '',
                          'switchControl': '',
+                         'FKIKSwitchAttr': '',
                          'ikControl': '',
+                         'ikJoints': '',
+                         'fkJoints': '',
                          'ikGimbalControl': '',
                          'reverseFootDriven': ''
                          }
@@ -104,20 +107,30 @@ class Limb():
         elif self.type == 'ungu':
             ikRig = self.buildIKUnguligrade()
 
+        # Define rigParts dictionary items
+        self.rigParts['fkJoints'] = fkRig['joints']
+        self.rigParts['ikJoints'] = ikRig['joints']
+        self.rigParts['fkControls'] = fkRig['controls']
+
+        # Make a group at the space of the top joint parent
+        limbParent = mc.listRelatives(self.limbJoints[0], p=1)[0]
+        parentSpace = mc.group(n='{}_limbParentSpaceGrp'.format(self.prefix), em=1)
+        mc.delete(mc.parentConstraint(limbParent, parentSpace, mo=0))
+
+        mc.parent(fkRig['joints'][0], parentSpace)
+        mc.parent(ikRig['joints'][0], parentSpace)
+        mc.parent(parentSpace, self.rigmodule.jointsGrp)
+
 
         # Connect deformation joints to fk and ik joints
-
-        pointConstraints = []
         orientConstraints = []
 
         # Make list of limb joints including scapula if there is one
         limb_joints = self.limbJoints
 
         for i in range(len(limb_joints)):
-            pConstraint = mc.pointConstraint(fkRig['joints'][i], ikRig['joints'][i], limb_joints[i], mo=0)[0]
             oConstraint = mc.orientConstraint(fkRig['joints'][i], ikRig['joints'][i], limb_joints[i], mo=0)[0]
             mc.setAttr('{}.interpType'.format(oConstraint), 2)
-            pointConstraints.append(pConstraint)
             orientConstraints.append(oConstraint)
 
         # Make switch control
@@ -131,6 +144,7 @@ class Limb():
         mc.addAttr(self.switchCtr.C, ln=switch_attr, at='double', min=0, max=1, dv=0, k=1)
 
         self.rigParts['switchControl'] = self.switchCtr
+        self.rigParts['FKIKSwitchAttr'] = '{}.{}'.format(self.switchCtr.C, switch_attr)
 
         # Create class member so we can access later
         self.FKIKAttr = '{}.{}'.format(self.switchCtr.C, switch_attr)
@@ -139,15 +153,29 @@ class Limb():
         reverse = mc.shadingNode('reverse', asUtility=True, n='{}_switch_reverse'.format(self.prefix))
         mc.connectAttr('{}.{}'.format(self.switchCtr.C, switch_attr), '{}.inputX'.format(reverse))
 
-        for constraint in pointConstraints:
-            weights = mc.pointConstraint(constraint, q=1, weightAliasList=1)
-            mc.connectAttr('{}.{}'.format(self.switchCtr.C, switch_attr), '{}.{}'.format(constraint, weights[1]))
-            mc.connectAttr('{}.outputX'.format(reverse), '{}.{}'.format(constraint, weights[0]))
-
         for constraint in orientConstraints:
             weights = mc.orientConstraint(constraint, q=1, weightAliasList=1)
             mc.connectAttr('{}.{}'.format(self.switchCtr.C, switch_attr), '{}.{}'.format(constraint, weights[1]))
             mc.connectAttr('{}.outputX'.format(reverse), '{}.{}'.format(constraint, weights[0]))
+
+        # Setup blend between fk ik joint translation
+
+        for i in range(len(self.limbJoints)):
+            blendNode = mc.shadingNode('blendColors', asUtility=True,
+                                       n='{}_jointScale_blend{}'.format(self.prefix, i))
+            mc.connectAttr('{}.{}'.format(self.switchCtr.C, switch_attr), '{}.blender'.format(blendNode))
+
+            mc.connectAttr('{}.tx'.format(ikRig['joints'][i]), '{}.color1.color1R'.format(blendNode))
+            mc.connectAttr('{}.ty'.format(ikRig['joints'][i]), '{}.color1.color1G'.format(blendNode))
+            mc.connectAttr('{}.tz'.format(ikRig['joints'][i]), '{}.color1.color1B'.format(blendNode))
+
+            mc.connectAttr('{}.tx'.format(fkRig['joints'][i]), '{}.color2.color2R'.format(blendNode))
+            mc.connectAttr('{}.ty'.format(fkRig['joints'][i]), '{}.color2.color2G'.format(blendNode))
+            mc.connectAttr('{}.tz'.format(fkRig['joints'][i]), '{}.color2.color2B'.format(blendNode))
+
+            mc.connectAttr('{}.outputR'.format(blendNode), '{}.tx'.format(self.limbJoints[i]))
+            mc.connectAttr('{}.outputG'.format(blendNode), '{}.ty'.format(self.limbJoints[i]))
+            mc.connectAttr('{}.outputB'.format(blendNode), '{}.tz'.format(self.limbJoints[i]))
 
         for ctrl in fkRig['controls']:
             mc.connectAttr('{}.outputX'.format(reverse), '{}.v'.format(ctrl.Off))
@@ -157,9 +185,7 @@ class Limb():
         mc.connectAttr('{}.{}'.format(self.switchCtr.C, switch_attr), '{}.v'.format(ikRig['poleVecLine']))
 
         # organize
-        pointconstraintGrp = mc.group(pointConstraints, n='defSkeleton_{}_pconstraints'.format(self.prefix))
         orientconstraintGrp = mc.group(orientConstraints, n='defSkeleton_{}_oconstraints'.format(self.prefix))
-        mc.parent(pointconstraintGrp, self.baseRig.noXformGrp)
         mc.parent(orientconstraintGrp, self.baseRig.noXformGrp)
 
         units = 3 * self.rigScale
@@ -179,32 +205,37 @@ class Limb():
         # move switch ctr
         mc.move(units, self.switchCtr.Off, x=x, y=y, z=z, os=1, r=1, wd=1)
 
+        # Create body attach group
+        bodyAttachGrp = mc.group(em=1, n='{}_bodyAttachGrp'.format(self.prefix))
+        mc.delete(mc.parentConstraint(self.limbJoints[0], bodyAttachGrp, mo=0))
+        mc.parent(bodyAttachGrp, self.rigmodule.partsGrp)
+
+        # connect FK and IK arm rigs to boddy attach group
+        mc.parent( fkRig['bodyAttachGrp'],bodyAttachGrp )
+        mc.parent( ikRig['bodyAttachGrp'], bodyAttachGrp )
+
+
         # build scapula rig
         if self.scapulaJoint:
+
             scapRig = self.buildScapula()
 
             # connect FK and IK arm rigs to scapula
-            mc.pointConstraint(scapRig['armAttach'], fkRig['controls'][0].Off, mo=1)
-            mc.orientConstraint(scapRig['armAttach'], fkRig['controls'][0].Off, mo=1)
-            mc.pointConstraint(scapRig['armAttach'], ikRig['baseAttachGrp'], mo=1)
-            mc.orientConstraint(scapRig['armAttach'], ikRig['baseAttachGrp'], mo=1)
+            mc.pointConstraint(scapRig['armAttach'],bodyAttachGrp, mo=1)
+            mc.orientConstraint(scapRig['armAttach'], bodyAttachGrp, mo=1)
+
+            # Parent space group for ik and fk joints follows body attach grp
+            mc.parentConstraint(scapRig['armAttach'], parentSpace, mo=1)
 
             self.rigParts['bodyAttachGrp'] = scapRig['bodyAttach']
 
         else:
 
-            # Create body attach group
-            bodyAttachGrp = mc.group(em=1, n='{}_bodyAttachGrp'.format(self.prefix))
-            mc.delete(mc.parentConstraint(self.limbJoints[0], bodyAttachGrp, mo = 0))
-            mc.parent(bodyAttachGrp, self.rigmodule.partsGrp)
-
-            # connect FK and IK arm rigs to boddy attach group
-            mc.pointConstraint(bodyAttachGrp, fkRig['controls'][0].Off, mo=1)
-            mc.orientConstraint(bodyAttachGrp, fkRig['controls'][0].Off, mo=1)
-            mc.pointConstraint(bodyAttachGrp, ikRig['baseAttachGrp'], mo=1)
-            mc.orientConstraint(bodyAttachGrp, ikRig['baseAttachGrp'], mo=1)
-
             self.rigParts['bodyAttachGrp'] = bodyAttachGrp
+
+            # Parent space group for ik and fk joints follows body attach grp
+            mc.parentConstraint(bodyAttachGrp, parentSpace, mo=1)
+
 
 
         # Create foot attach group
@@ -215,24 +246,13 @@ class Limb():
         # Set rigPart objects to call later
         self.rigParts['footAttachGrp'] = footAttachGrp
 
-        # Set some class properties we can call later to set a T pose
-        '''
-        self.fkControls = fkRig['controls']
-        self.pvControl = ikRig['controls'][1]
-        self.ikRotateGrp = ikRig['rotateGrp']
-        '''
-
         if self.bendy:
             self.buildBendyLimbs()
-
-        # Create tpose/ a pose switch
-        #self.tPose(self.fkControls, self.pvControl, self.ikRotateGrp)
 
     def buildFK(self):
 
         # duplicate limb joints to make FK joints
         fkJoints = joint.duplicateChain(self.limbJoints, 'jnt', 'FK_jnt')
-        mc.parent(fkJoints[0], self.rigmodule.jointsGrp)
 
         # make controls
 
@@ -243,18 +263,23 @@ class Limb():
 
         mc.parent(fkControlChain['controls'][0].Off, self.rigmodule.controlsGrp)
 
-        self.rigParts['fkControls'] = controls
+        # Create body attach group
+        bodyAttachGrp = mc.group(em=1, n='{}_fkBodyAttachGrp'.format(self.prefix))
+        mc.delete(mc.parentConstraint(self.limbJoints[0], bodyAttachGrp, mo=0))
+        mc.parent(bodyAttachGrp, self.rigmodule.partsGrp)
+
+        # Have top fk control follow the body attach group
+        mc.pointConstraint(bodyAttachGrp, controls[0].Off, mo=1)
+        mc.orientConstraint(bodyAttachGrp, controls[0].Off, mo=1)
 
 
-
-
-        return {'joints': fkJoints, 'controls': controls}
+        return {'joints': fkJoints, 'controls': controls, 'bodyAttachGrp': bodyAttachGrp}
 
     def buildIKPlantigrade(self):
 
         # duplicate arm joints to make IK joints
         ikJoints = joint.duplicateChain(self.limbJoints, 'jnt', 'IK_jnt')
-        mc.parent(ikJoints[0], self.rigmodule.jointsGrp)
+
 
         # Make controls
         if self.ikCtrOrient == 'bone':
@@ -278,17 +303,16 @@ class Limb():
         controls = [armCtr, poleVectorCtr, wristGimbalCtr]
 
         self.rigParts['ikControl'] = armCtr
-        #self.rigParts['ikControls'] = controls
         self.rigParts['ikGimbalControl'] = wristGimbalCtr
 
 
 
         # Shoulder attach group moves the base of the ik limb. Is used to attach to a scaupla rig or spine rig later
-        shoulderAttachGrp = mc.group(n='{}_ikShoulderJnt_driver'.format(self.prefix), em=1, p=self.rigmodule.partsGrp)
-        mc.delete(mc.parentConstraint(ikJoints[0], shoulderAttachGrp, mo=0))
+        bodyAttachGrp = mc.group(n='{}_ikBodyAttachGrp'.format(self.prefix), em=1, p=self.rigmodule.partsGrp)
+        mc.delete(mc.parentConstraint(ikJoints[0], bodyAttachGrp, mo=0))
 
         # First ik joint should follow shoulderAttachGro
-        mc.pointConstraint(shoulderAttachGrp, ikJoints[0], mo=1)
+        mc.pointConstraint(bodyAttachGrp, ikJoints[0], mo=1)
 
         # ikEndGrp moves the IK handle and objects that are meant to be the "end" of the IK. Follows the IK control, but can be used to follow a reverse foot setup later.
         ikEndGrp = mc.group(n='{}_ikEndEffectors'.format(self.prefix), em=1)
@@ -414,7 +438,7 @@ class Limb():
 
         # Create locator to follow shoulder
         shoulderLoc = mc.group(n='{}_IKShoulderLoc'.format(self.prefix), em=1)
-        mc.parent(shoulderLoc, shoulderAttachGrp)
+        mc.parent(shoulderLoc, bodyAttachGrp)
         mc.delete(mc.parentConstraint(ikJoints[0], shoulderLoc, mo=0))
 
         # Create group to follow hand IK control
@@ -541,12 +565,17 @@ class Limb():
 
 
         return {'joints': ikJoints, 'controls': controls, 'poleVecLine': poleVectorCurve,
-                'baseAttachGrp': shoulderAttachGrp }
+                'bodyAttachGrp': bodyAttachGrp }
 
 
 
 
     def buildScapula(self):
+
+        # make body attach group
+        bodyAttachGrp = mc.group(n='{}_scap_bodyAttachGrp'.format(self.prefix), em=1, p=self.rigmodule.partsGrp)
+        mc.delete(mc.parentConstraint(self.scapulaJoint, bodyAttachGrp, mo=0))
+
 
         # Make scapula control
 
@@ -554,20 +583,81 @@ class Limb():
                                   rotateTo = self.scapulaJoint, scale=self.rigScale, parent=self.rigmodule.controlsGrp,
                                   shape = 'quadArrow', offsets= ['null', 'zero', 'auto'])
 
-        scapAimCtr = control.Control(prefix='{}_scapula_translate'.format(self.prefix), translateTo= self.limbJoints[0], rotateTo= self.limbJoints[0],
-                                  scale=self.rigScale, parent=self.rigmodule.controlsGrp, shape = 'squareY',
-                                     lockChannels= ['r', 's'])
+        self.rigParts['scapulaControls'] = [scapCtr]
 
-        self.rigParts['scapulaControls'] = [scapCtr, scapAimCtr]
+        mc.parentConstraint(bodyAttachGrp, scapCtr.Off, mo=1)
 
-        # setup aim constraint on scapCtr
 
-        upVector = mc.group(n = '{}_aim_upVec'.format(self.prefix), em = 1)
-        mc.delete(mc.parentConstraint(scapAimCtr.C, upVector, mo=0))
-        mc.parent(upVector, scapAimCtr.C)
+        # setup aim and no aim locators
+        scapulaGrp = mc.group(n = '{}_scapulaLocatorsGrp'.format(self.prefix), em = 1)
+        noAimLoc = mc.spaceLocator(n='{}_scapula_NoAim'.format(self.prefix))
+        aimLoc = mc.spaceLocator(n='{}_scapula_Aim'.format(self.prefix))
 
-        mc.aimConstraint( scapAimCtr.C, scapCtr.Offsets[2], aimVector=(1, 0, 0), upVector=(0, 1, 0),
+        mc.parent(noAimLoc, scapulaGrp)
+        mc.parent(aimLoc, scapulaGrp)
+        mc.parent(scapulaGrp, self.rigmodule.partsGrp)
+
+        mc.parentConstraint(bodyAttachGrp, scapulaGrp, mo = 0)
+
+        ikControl = self.rigParts['ikControl'].C
+
+        # Create group that follows wrist result joint
+        wristPositionGrp = mc.group(n='{}_ikWristResultGrp'.format(self.prefix), em=1)
+        mc.parent(wristPositionGrp, self.rigmodule.partsGrp)
+        mc.delete(mc.parentConstraint(ikControl, wristPositionGrp, mo=0))
+
+
+        # Make upvector that follows end result of wrist
+        upVector = mc.group(n='{}_aim_upVec'.format(self.prefix), em=1)
+        mc.delete(mc.pointConstraint(ikControl, upVector, mo=0))
+        mc.delete(mc.orientConstraint(aimLoc, upVector, mo=0))
+        mc.parent(upVector, wristPositionGrp)
+
+        fkWristPositionGrp = mc.group(n='{}_fkWristResultGrp'.format(self.prefix), em=1)
+        #mc.parent(fkWristPositionGrp, self.rigmodule.partsGrp)
+        mc.parent(fkWristPositionGrp, bodyAttachGrp)
+        mc.delete(mc.parentConstraint(ikControl, fkWristPositionGrp, mo = 0))
+
+        # Constrain wristPosition group between ik control and a static position for when in FK mode
+        wristPosConstraint = mc.pointConstraint(fkWristPositionGrp, ikControl, wristPositionGrp, mo= 1)[0]
+        wristWeights = mc.pointConstraint(wristPosConstraint, q=1, weightAliasList = 1)
+
+        # make reverse node
+        reverse = mc.shadingNode('reverse', asUtility=True, n='{}_wristAimSwitch_reverse'.format(self.prefix))
+        mc.connectAttr(self.rigParts['FKIKSwitchAttr'], '{}.inputX'.format(reverse))
+
+        mc.connectAttr(self.rigParts['FKIKSwitchAttr'], '{}.{}'.format(wristPosConstraint, wristWeights[1]))
+        mc.connectAttr('{}.outputX'.format(reverse), '{}.{}'.format(wristPosConstraint, wristWeights[0]))
+
+
+        mc.aimConstraint( wristPositionGrp, aimLoc, aimVector=(-1, 0, 0), upVector=(0, 1, 0),
                          worldUpType='objectRotation', worldUpVector=(0, 1, 0), worldUpObject=upVector, mo = 1)
+
+        # Orient constraint scapula control offset between aim and no aim locators
+        oconstraint = mc.orientConstraint(aimLoc, noAimLoc, scapCtr.Offsets[1], mo = 1)[0]
+        weights = mc.orientConstraint(oconstraint, q=1, weightAliasList=1)
+        mc.setAttr('{}.interpType'.format(oconstraint), 2)
+
+        # Create attribute to drive scapula aim
+        scap_aim_attr = 'Scapula_Aim'
+        mc.addAttr(ikControl, ln = scap_aim_attr, at='double', min=0, max=1, dv=0, k=1)
+
+        # Create remap node
+        remap = mc.shadingNode('remapValue', asUtility=True, n='{}_scapAim_remap'.format(self.prefix))
+        mc.connectAttr('{}.{}'.format(ikControl, scap_aim_attr), '{}.inputValue'.format(remap))
+        mc.setAttr( '{}.inputMax'.format(remap), 1)
+        mc.setAttr('{}.inputMin'.format(remap), 0)
+        mc.setAttr('{}.outputMax'.format(remap), 0.5)
+        mc.setAttr('{}.outputMin'.format(remap), 0)
+
+
+        mc.connectAttr('{}.outValue'.format(remap), '{}.{}'.format(oconstraint, weights[0]))
+        reverse = mc.shadingNode('reverse', asUtility=True, n='{}_scapAim_reverse'.format(self.prefix))
+        mc.connectAttr('{}.{}'.format(ikControl, scap_aim_attr), '{}.inputX'.format(reverse))
+        mc.connectAttr('{}.outputX'.format(reverse), '{}.{}'.format(oconstraint, weights[1]))
+        mc.parent(oconstraint, self.rigmodule.noXformGrp)
+        mc.setAttr('{}.{}'.format(ikControl, scap_aim_attr), 1.0)
+
 
         # connect scapula joint to control
         constraint = mc.parentConstraint(scapCtr.C, self.scapulaJoint, mo = 1 )[0]
@@ -580,12 +670,6 @@ class Limb():
         mc.parent(endPos, scapCtr.C)
         mc.hide(endPos)
 
-        # make body attach group
-        bodyAttachGrp = mc.group(n= '{}_scap_bodyAttachGrp'.format(self.prefix),em = 1, p = self.rigmodule.partsGrp)
-        mc.delete(mc.parentConstraint(self.scapulaJoint, bodyAttachGrp, mo = 0) )
-
-        mc.parentConstraint( bodyAttachGrp, scapCtr.Off, mo = 1)
-        mc.parentConstraint(bodyAttachGrp, scapAimCtr.Off, mo=1)
 
         return {'armAttach': endPos, 'bodyAttach': bodyAttachGrp}
 
