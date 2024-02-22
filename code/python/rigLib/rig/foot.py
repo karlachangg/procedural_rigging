@@ -103,48 +103,41 @@ class Foot():
 
         # Connect deformation joints to fk and ik joints
 
-        #pointConstraints = []
         orientConstraints = []
 
         for i in range(len(self.toeJoints)):
-            #pConstraint = mc.pointConstraint(fkRig['joints'][i], ikRig['joints'][i], self.toeJoints[i], mo=0)[0]
             oConstraint = mc.orientConstraint(fkRig['joints'][i], ikRig['joints'][i], self.toeJoints[i], mo=0)[0]
             mc.setAttr('{}.interpType'.format(oConstraint), 2)
-            #pointConstraints.append(pConstraint)
             orientConstraints.append(oConstraint)
 
         # make reverse node
         reverse = mc.shadingNode('reverse', asUtility=True, n='{}_switch_reverse'.format(self.prefix))
         mc.connectAttr(self.switchAttr, '{}.inputX'.format(reverse))
 
-        '''for constraint in pointConstraints:
-            weights = mc.pointConstraint(constraint, q=1, weightAliasList=1)
-            mc.connectAttr(self.switchAttr, '{}.{}'.format(constraint, weights[1]))
-            mc.connectAttr('{}.outputX'.format(reverse), '{}.{}'.format(constraint, weights[0]))'''
-
         for constraint in orientConstraints:
             weights = mc.orientConstraint(constraint, q=1, weightAliasList=1)
             mc.connectAttr(self.switchAttr, '{}.{}'.format(constraint, weights[1]))
             mc.connectAttr('{}.outputX'.format(reverse), '{}.{}'.format(constraint, weights[0]))
 
-            # Setup blend between fk ik joint translation
+        # Setup blend between joint scales
 
         for i in range(len(self.toeJoints)):
             blendNode = mc.shadingNode('blendColors', asUtility=True,
                                        n='{}_jointScale_blend{}'.format(self.prefix, i))
             mc.connectAttr(self.switchAttr, '{}.blender'.format(blendNode))
 
-            mc.connectAttr('{}.tx'.format(ikRig['joints'][i]), '{}.color1.color1R'.format(blendNode))
-            mc.connectAttr('{}.ty'.format(ikRig['joints'][i]), '{}.color1.color1G'.format(blendNode))
-            mc.connectAttr('{}.tz'.format(ikRig['joints'][i]), '{}.color1.color1B'.format(blendNode))
+            mc.connectAttr('{}.sx'.format(ikRig['joints'][i]), '{}.color1.color1R'.format(blendNode))
+            mc.connectAttr('{}.sy'.format(ikRig['joints'][i]), '{}.color1.color1G'.format(blendNode))
+            mc.connectAttr('{}.sz'.format(ikRig['joints'][i]), '{}.color1.color1B'.format(blendNode))
 
-            mc.connectAttr('{}.tx'.format(fkRig['joints'][i]), '{}.color2.color2R'.format(blendNode))
-            mc.connectAttr('{}.ty'.format(fkRig['joints'][i]), '{}.color2.color2G'.format(blendNode))
-            mc.connectAttr('{}.tz'.format(fkRig['joints'][i]), '{}.color2.color2B'.format(blendNode))
+            mc.connectAttr('{}.sx'.format(fkRig['joints'][i]), '{}.color2.color2R'.format(blendNode))
+            mc.connectAttr('{}.sy'.format(fkRig['joints'][i]), '{}.color2.color2G'.format(blendNode))
+            mc.connectAttr('{}.sz'.format(fkRig['joints'][i]), '{}.color2.color2B'.format(blendNode))
 
-            mc.connectAttr('{}.outputR'.format(blendNode), '{}.tx'.format(self.toeJoints[i]))
-            mc.connectAttr('{}.outputG'.format(blendNode), '{}.ty'.format(self.toeJoints[i]))
-            mc.connectAttr('{}.outputB'.format(blendNode), '{}.tz'.format(self.toeJoints[i]))
+            mc.connectAttr('{}.outputR'.format(blendNode), '{}.sx'.format(self.toeJoints[i]))
+            mc.connectAttr('{}.outputG'.format(blendNode), '{}.sy'.format(self.toeJoints[i]))
+            mc.connectAttr('{}.outputB'.format(blendNode), '{}.sz'.format(self.toeJoints[i]))
+
 
         for ctrl in fkRig['controls']:
             mc.connectAttr('{}.outputX'.format(reverse), '{}.v'.format(ctrl.Off))
@@ -152,9 +145,7 @@ class Foot():
             mc.connectAttr(self.switchAttr, '{}.v'.format(ctrl.Off))
 
         # organize
-        #pointconstraintGrp = mc.group(pointConstraints, n='defSkeleton_{}_pconstraints'.format(self.prefix))
         orientconstraintGrp = mc.group(orientConstraints, n='defSkeleton_{}_oconstraints'.format(self.prefix))
-        #mc.parent(pointconstraintGrp, self.baseRig.noXformGrp)
         mc.parent(orientconstraintGrp, self.baseRig.noXformGrp)
 
 
@@ -170,7 +161,8 @@ class Foot():
         # make controls
 
         toeCtr = control.Control(prefix = '{}_toesFK'.format(self.prefix), translateTo = fkJoints[0], rotateTo=fkJoints[0],
-                                  scale = self.rigScale * 0.5, parent = self.fkFootCtr.C, shape='circleX')
+                                scale = self.rigScale * 0.5, parent = self.fkFootCtr.C, shape='circleX',
+                                 lockChannels= ['t', 's', 'v'])
 
         controls = [toeCtr]
 

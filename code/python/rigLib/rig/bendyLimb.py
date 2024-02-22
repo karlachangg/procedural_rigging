@@ -164,6 +164,7 @@ class BendyLimb():
 
         #startNoRotate = mc.spaceLocator(n = '{}_startLoc_noRotate'.format(self.prefix))[0]
         endNoRotate = mc.spaceLocator(n='{}_endLoc_noRotate'.format(self.prefix))[0]
+        mc.setAttr('{}.rotateOrder'.format(endNoRotate), 2)
         endNoRotateOffset = mc.group(endNoRotate, n = '{}_endLoc_noRotate_Offset'.format(self.prefix))
 
         mc.parent(endNoRotateOffset, self.rigmodule.partsGrp)

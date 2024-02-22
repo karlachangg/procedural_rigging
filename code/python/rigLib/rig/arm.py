@@ -94,18 +94,6 @@ class Arm():
         self.rigParts['fkJoints'] = fkRig['joints']
         self.rigParts['ikJoints'] = ikRig['joints']
 
-        # Connect deformation joints to fk and ik joints
-
-        pointConstraints = []
-        orientConstraints = []
-
-
-        for i in range(len(self.armJoints)):
-            pConstraint = mc.pointConstraint(fkRig['joints'][i], ikRig['joints'][i], self.armJoints[i], mo=0)[0]
-            oConstraint = mc.orientConstraint(fkRig['joints'][i], ikRig['joints'][i], self.armJoints[i], mo=0)[0]
-            mc.setAttr('{}.interpType'.format(oConstraint), 2)
-            pointConstraints.append(pConstraint)
-            orientConstraints.append(oConstraint)
 
 
         # Make switch control
@@ -120,20 +108,45 @@ class Arm():
         self.rigParts['switchControl'] = self.switchCtr
         # Create class member so we can access later
         self.rigParts['FKIKSwitchAttr'] = '{}.{}'.format(self.switchCtr.C, switch_attr)
+        # Connect deformation joints to fk and ik joints
+
+
+        orientConstraints = []
+
+        for i in range(len(self.armJoints)):
+            oConstraint = mc.orientConstraint(fkRig['joints'][i], ikRig['joints'][i], self.armJoints[i], mo=0)[0]
+            mc.setAttr('{}.interpType'.format(oConstraint), 2)
+            orientConstraints.append(oConstraint)
 
         # make reverse node
         reverse = mc.shadingNode('reverse', asUtility=True, n='{}_switch_reverse'.format(self.prefix))
         mc.connectAttr('{}.{}'.format(self.switchCtr.C, switch_attr), '{}.inputX'.format(reverse))
 
-        for constraint in pointConstraints:
-            weights = mc.pointConstraint(constraint, q=1, weightAliasList=1)
-            mc.connectAttr('{}.{}'.format(self.switchCtr.C, switch_attr), '{}.{}'.format(constraint, weights[1]))
-            mc.connectAttr('{}.outputX'.format(reverse), '{}.{}'.format(constraint, weights[0]))
-
         for constraint in orientConstraints:
             weights = mc.orientConstraint(constraint, q=1, weightAliasList=1)
             mc.connectAttr('{}.{}'.format(self.switchCtr.C, switch_attr), '{}.{}'.format(constraint, weights[1]))
             mc.connectAttr('{}.outputX'.format(reverse), '{}.{}'.format(constraint, weights[0]))
+
+
+        # Setup blend between joint scales
+
+        for i in range(len(self.armJoints)):
+            blendNode = mc.shadingNode('blendColors', asUtility=True,
+                                       n='{}_jointScale_blend{}'.format(self.prefix, i))
+            mc.connectAttr('{}.{}'.format(self.switchCtr.C, switch_attr), '{}.blender'.format(blendNode))
+
+            mc.connectAttr('{}.sx'.format(ikRig['joints'][i]), '{}.color1.color1R'.format(blendNode))
+            mc.connectAttr('{}.sy'.format(ikRig['joints'][i]), '{}.color1.color1G'.format(blendNode))
+            mc.connectAttr('{}.sz'.format(ikRig['joints'][i]), '{}.color1.color1B'.format(blendNode))
+
+            mc.connectAttr('{}.sx'.format(fkRig['joints'][i]), '{}.color2.color2R'.format(blendNode))
+            mc.connectAttr('{}.sy'.format(fkRig['joints'][i]), '{}.color2.color2G'.format(blendNode))
+            mc.connectAttr('{}.sz'.format(fkRig['joints'][i]), '{}.color2.color2B'.format(blendNode))
+
+            mc.connectAttr('{}.outputR'.format(blendNode), '{}.sx'.format(self.armJoints[i]))
+            mc.connectAttr('{}.outputG'.format(blendNode), '{}.sy'.format(self.armJoints[i]))
+            mc.connectAttr('{}.outputB'.format(blendNode), '{}.sz'.format(self.armJoints[i]))
+
 
         for ctrl in fkRig['controls']:
             mc.connectAttr('{}.outputX'.format(reverse), '{}.v'.format(ctrl.Off))
@@ -143,9 +156,7 @@ class Arm():
         mc.connectAttr('{}.{}'.format(self.switchCtr.C, switch_attr), '{}.v'.format(ikRig['poleVecLine']))
 
         # organize
-        pointconstraintGrp = mc.group(pointConstraints, n='defSkeleton_{}_pconstraints'.format(self.prefix))
         orientconstraintGrp = mc.group(orientConstraints, n='defSkeleton_{}_oconstraints'.format(self.prefix))
-        mc.parent(pointconstraintGrp, self.baseRig.noXformGrp)
         mc.parent(orientconstraintGrp, self.baseRig.noXformGrp)
 
         units = 3 * self.rigScale
@@ -268,11 +279,12 @@ class Arm():
         # make controls
 
         shoulderCtr = control.Control(prefix ='{}_shoulder'.format(self.prefix), translateTo = fkJoints[0], rotateTo = fkJoints[0],
-                                 scale=self.rigScale, parent = self.rigmodule.controlsGrp, shape = 'circleX',  offsets= ['null', 'zero', 'auto'])
+                                scale=self.rigScale, parent = self.rigmodule.controlsGrp, shape = 'circleX',
+                                lockChannels= ['t', 's', 'v'], offsets= ['null', 'zero', 'auto'])
         elbowCtr = control.Control(prefix ='{}_elbow'.format(self.prefix), translateTo = fkJoints[1], rotateTo = fkJoints[1],
-                                  scale=self.rigScale, parent = shoulderCtr.C, shape='circleX')
+                                  scale=self.rigScale, parent = shoulderCtr.C, shape='circleX', lockChannels= ['t', 's', 'v'])
         wristCtr = control.Control(prefix = '{}_wrist'.format(self.prefix), translateTo = fkJoints[2], rotateTo = fkJoints[2],
-                                  scale = self.rigScale, parent = elbowCtr.C, shape = 'circleX')
+                                  scale = self.rigScale, parent = elbowCtr.C, shape = 'circleX', lockChannels= ['t', 's', 'v'])
         controls = [shoulderCtr, elbowCtr, wristCtr]
 
 
@@ -471,26 +483,29 @@ class Arm():
         mc.connectAttr('{}.distance'.format(arm_dist), '{}.input1X'.format(arm_dist_global))
         mc.connectAttr('{}.sx'.format(self.baseRig.global1Ctrl.C), '{}.input2X'.format(arm_dist_global))
 
-        # Negate leg distance value for right side
-        if self.side == 'r':
-            arm_dist_negative = mc.shadingNode('multiplyDivide', asUtility=True,
-                                               n='{}_arm_distance_negative'.format(self.prefix))
-            mc.setAttr('{}.operation'.format(arm_dist_negative), 1)
-            mc.connectAttr('{}.outputX'.format(arm_dist_global), '{}.input1X'.format(arm_dist_negative))
-            mc.setAttr('{}.input2X'.format(arm_dist_negative), -1)
-            sdkDriver = '{}.outputX'.format(arm_dist_negative)
 
-        if self.side == 'l':
+        # Negate leg distance value for right side
+        if '-' in self.forwardAxis:
+            leg_dist_negative = mc.shadingNode('multiplyDivide', asUtility=True, n='{}_leg_distance_negative'.format(self.prefix))
+            mc.setAttr('{}.operation'.format(leg_dist_negative), 1)
+            mc.connectAttr('{}.outputX'.format(arm_dist_global), '{}.input1X'.format(leg_dist_negative))
+            mc.setAttr('{}.input2X'.format(leg_dist_negative), -1)
+            sdkDriver = '{}.outputX'.format(leg_dist_negative)
+        else:
             sdkDriver = '{}.outputX'.format(arm_dist_global)
+
 
         # Get the original length of the upper and lower arm joints
 
         if 'x' in self.forwardAxis:
             lengthAxisAttr = 'tx'
+            scaleAxisAttr = 'sx'
         elif 'y' in self.forwardAxis:
             lengthAxisAttr = 'ty'
+            scaleAxisAttr = 'sy'
         elif 'z' in self.forwardAxis:
             lengthAxisAttr = 'tz'
+            scaleAxisAttr = 'sz'
 
         upperArm_length = mc.getAttr('{}.{}'.format(ikJoints[1], lengthAxisAttr))
         lowerArm_length = mc.getAttr('{}.{}'.format(ikJoints[2], lengthAxisAttr))
@@ -505,172 +520,64 @@ class Arm():
         # Create class member so we can access later
         self.StretchyAttr = '{}.{}'.format(armCtr.C, stretch_attr)
 
-        # make blender node for upper arm
-        blenderStretchUpperArm = mc.shadingNode('blendTwoAttr', asUtility=True, n='{}_blenderArmUpper_stretch'.format(self.prefix))
-        mc.connectAttr('{}.{}'.format(armCtr.C, stretch_attr), '{}.attributesBlender'.format(blenderStretchUpperArm))
-
-        # make blender node for lower arm
-        blenderStretchLowerArm = mc.shadingNode('blendTwoAttr', asUtility=True, n='{}_blenderArmLower_stretch'.format(self.prefix))
-        mc.connectAttr('{}.{}'.format(armCtr.C, stretch_attr), '{}.attributesBlender'.format(blenderStretchLowerArm))
-
         # Make length attributes
         length1_attr = 'Length1'
         length2_attr = 'Length2'
         mc.addAttr(armCtr.C, ln=length1_attr, at='double', min=1, dv=1, k=1)
         mc.addAttr(armCtr.C, ln=length2_attr, at='double', min=1, dv=1, k=1)
+        if '-' in self.forwardAxis:
+            fAxisDirection = 0
+        else:
+            fAxisDirection = 1
 
-        # Multiply stretchy leg by length
-        length1_mult = mc.shadingNode('multiplyDivide', asUtility=True, n='{}_length1_mult'.format(self.prefix))
-        mc.setAttr('{}.operation'.format(length1_mult), 1)
-        mc.connectAttr('{}.{}'.format(armCtr.C, length1_attr), '{}.input1X'.format(length1_mult))
+        blenderStretchUpper = boneStretch(prefix='{}_bone1'.format(self.prefix),
+                                          boneOrigLength=upperArm_length,
+                                          totalLimbLength=armLength,
+                                          lengthAttr='{}.{}'.format(armCtr.C, length1_attr),
+                                          stretchAttr=self.StretchyAttr,
+                                          stretchDriver=sdkDriver,
+                                          forwardAxisPositive=fAxisDirection
+                                          )
 
-        length2_mult = mc.shadingNode('multiplyDivide', asUtility=True, n='{}_length2_mult'.format(self.prefix))
-        mc.setAttr('{}.operation'.format(length2_mult), 1)
-        mc.connectAttr('{}.{}'.format(armCtr.C, length2_attr), '{}.input1X'.format(length2_mult))
-
-        # Have leg stretchy SDK feed into this multDiv node
-        sdkDrivenUpper = '{}.input2X'.format(length1_mult)
-        sdkDrivenLower = '{}.input2X'.format(length2_mult)
-
-        # connect multDiv node to blender input
-        mc.connectAttr('{}.outputX'.format(length1_mult), '{}.input[1]'.format(blenderStretchUpperArm))
-        mc.connectAttr('{}.outputX'.format(length2_mult), '{}.input[1]'.format(blenderStretchLowerArm))
-
-        # Multiply non stretchy leg by length attribute
-        length1_noStretch_mult = mc.shadingNode('multiplyDivide', asUtility=True,
-                                                    n='{}_length1_noStretch_mult'.format(self.prefix))
-        mc.setAttr('{}.operation'.format(length1_noStretch_mult), 1)
-        mc.connectAttr('{}.{}'.format(armCtr.C, length1_attr), '{}.input1X'.format(length1_noStretch_mult))
-        mc.setAttr('{}.input2X'.format(length1_noStretch_mult), upperArm_length)
-        # connect output to blender input
-        mc.connectAttr('{}.outputX'.format(length1_noStretch_mult), '{}.input[0]'.format(blenderStretchUpperArm))
-
-        length2_noStretch_mult = mc.shadingNode('multiplyDivide', asUtility=True,
-                                                    n='{}_length2_noStretch_mult'.format(self.prefix))
-        mc.setAttr('{}.operation'.format(length2_noStretch_mult), 1)
-        mc.connectAttr('{}.{}'.format(armCtr.C, length2_attr), '{}.input1X'.format(length2_noStretch_mult))
-        mc.setAttr('{}.input2X'.format(length2_noStretch_mult), lowerArm_length)
-        # connect upper leg bone original length to blender input
-        mc.connectAttr('{}.outputX'.format(length2_noStretch_mult), '{}.input[0]'.format(blenderStretchLowerArm))
-
-        # Set up SDK to stretch arm after it's extended beyond its length
-
-        # upper leg
-        mc.setDrivenKeyframe(sdkDrivenUpper,
-                             currentDriver = sdkDriver,
-                             driverValue = armLength,
-                             value = upperArm_length,
-                             inTangentType = 'linear',
-                             outTangentType = 'linear')
-
-        mc.setDrivenKeyframe(sdkDrivenUpper,
-                             currentDriver=sdkDriver,
-                             driverValue = armLength * 2,
-                             value = upperArm_length * 2,
-                             inTangentType = 'spline',
-                             outTangentType = 'spline')
-
-        animCurveUpperArm = mc.keyframe(sdkDrivenUpper, query=True, name=True)[0]
-
-        if self.side == 'l':
-            mc.setAttr('{}.postInfinity'.format(animCurveUpperArm), 1)
-        elif self.side == 'r':
-            mc.setAttr('{}.preInfinity'.format(animCurveUpperArm), 1)
-
-        # lower leg
-        mc.setDrivenKeyframe(sdkDrivenLower,
-                             currentDriver = sdkDriver,
-                             driverValue = armLength,
-                             value = lowerArm_length,
-                             inTangentType='linear',
-                             outTangentType='linear')
-
-        mc.setDrivenKeyframe(sdkDrivenLower,
-                             currentDriver=sdkDriver,
-                             driverValue=armLength * 2,
-                             value=lowerArm_length * 2,
-                             inTangentType='spline',
-                             outTangentType='spline')
-
-        animCurveLowerArm = mc.keyframe(sdkDrivenLower, query=True, name=True)[0]
-
-        if self.side == 'l':
-            mc.setAttr('{}.postInfinity'.format(animCurveLowerArm), 1)
-        elif self.side == 'r':
-            mc.setAttr('{}.preInfinity'.format(animCurveLowerArm), 1)
+        blenderStretchLower = boneStretch(prefix='{}_bone2'.format(self.prefix),
+                                          boneOrigLength=lowerArm_length,
+                                          totalLimbLength=armLength,
+                                          lengthAttr='{}.{}'.format(armCtr.C, length2_attr),
+                                          stretchAttr=self.StretchyAttr,
+                                          stretchDriver=sdkDriver,
+                                          forwardAxisPositive=fAxisDirection
+                                          )
 
 
         # make elbow pin to pv setup
         pv_pin_attr = 'Pin'
         mc.addAttr(poleVectorCtr.C, ln=pv_pin_attr, at='double', min=0, max=1, dv=0, k=1)
 
-        # make blender node for elbow
-        blenderPinUpper = mc.shadingNode('blendTwoAttr', asUtility=True, n='{}_blenderPinUpper'.format(self.prefix))
-        mc.connectAttr('{}.{}'.format(poleVectorCtr.C, pv_pin_attr), '{}.attributesBlender'.format(blenderPinUpper))
+        blenderPinUpper = poleVectorPin(prefix='{}_bone1'.format(self.prefix),
+                                        pinAttr='{}.{}'.format(poleVectorCtr.C, pv_pin_attr),
+                                        pvCtrl=poleVectorCtr.C,
+                                        boneLocator = shoulderLoc,
+                                        boneOrigLength = upperArm_length,
+                                        globalCtrl='{}.scaleX'.format(self.baseRig.global1Ctrl.C),
+                                        forwardAxisPositive=fAxisDirection
+                                        )
 
-        # make blender node for wrist
-        blenderPinLower = mc.shadingNode('blendTwoAttr', asUtility=True, n='{}_blenderPinLower'.format(self.prefix))
-        mc.connectAttr('{}.{}'.format(poleVectorCtr.C, pv_pin_attr), '{}.attributesBlender'.format(blenderPinLower))
+        blenderPinLower = poleVectorPin(prefix='{}_bone2'.format(self.prefix),
+                                        pinAttr='{}.{}'.format(poleVectorCtr.C, pv_pin_attr),
+                                        pvCtrl=poleVectorCtr.C,
+                                        boneLocator = followWrist,
+                                        boneOrigLength = lowerArm_length,
+                                        globalCtrl='{}.scaleX'.format(self.baseRig.global1Ctrl.C),
+                                        forwardAxisPositive=fAxisDirection
+                                        )
 
         # connect stretch/no stretch blender output to pin/noPin blender input
-        mc.connectAttr('{}.output'.format(blenderStretchUpperArm), '{}.input[0]'.format(blenderPinUpper))
-        mc.connectAttr('{}.output'.format(blenderStretchLowerArm), '{}.input[0]'.format(blenderPinLower))
+        mc.connectAttr('{}.output'.format(blenderStretchUpper), '{}.input[0]'.format(blenderPinUpper))
+        mc.connectAttr('{}.output'.format(blenderStretchLower), '{}.input[0]'.format(blenderPinLower))
 
-        # get distance between shoulderLoc and PV control
-        shoulder_pv_dist = mc.shadingNode('distanceBetween', asUtility=True,
-                                          n='{}_shoulder_2_pv_distance'.format(self.prefix))
-        # connect distance node to shoulder location and pv ctr world matrix
-        mc.connectAttr('{}.worldMatrix'.format(shoulderLoc), '{}.inMatrix1'.format(shoulder_pv_dist))
-        mc.connectAttr('{}.worldMatrix'.format(poleVectorCtr.C), '{}.inMatrix2'.format(shoulder_pv_dist))
-
-
-        # make multiply divide node to take into account global scale
-        elbowGlobalLength = mc.shadingNode('multiplyDivide', asUtility=True, n='{}_elbowGlobalLength'.format(self.prefix))
-        mc.setAttr('{}.operation'.format(elbowGlobalLength), 2)
-        mc.connectAttr('{}.distance'.format(shoulder_pv_dist), '{}.input1X'.format(elbowGlobalLength))
-        mc.connectAttr('{}.scaleX'.format(self.baseRig.global1Ctrl.C), '{}.input2X'.format(elbowGlobalLength))
-
-        # Now do lower leg
-        # get distance between followWrist and PV control
-        wrist_pv_dist = mc.shadingNode('distanceBetween', asUtility=True,
-                                       n='{}_pv_2_wrist_distance'.format(self.prefix))
-        # connect distance node to pv ctr world matrix and group positioned at wrist
-        mc.connectAttr('{}.worldMatrix'.format(followWrist), '{}.inMatrix1'.format(wrist_pv_dist))
-        mc.connectAttr('{}.worldMatrix'.format(poleVectorCtr.C), '{}.inMatrix2'.format(wrist_pv_dist))
-
-
-        # make multiply divide node to take into account global scale
-        wristGlobalLength = mc.shadingNode('multiplyDivide', asUtility=True, n='{}_wristGlobalLength'.format(self.prefix))
-        mc.setAttr('{}.operation'.format(wristGlobalLength), 2)
-        mc.connectAttr('{}.distance'.format(wrist_pv_dist), '{}.input1X'.format(wristGlobalLength))
-        mc.connectAttr('{}.scaleX'.format(self.baseRig.global1Ctrl.C), '{}.input2X'.format(wristGlobalLength))
-
-
-
-        if self.side == 'l':
-
-            # connect distance from shoulder to pv ctr to blender input
-            mc.connectAttr('{}.outputX'.format(elbowGlobalLength), '{}.input[1]'.format(blenderPinUpper))
-            mc.connectAttr('{}.outputX'.format(wristGlobalLength), '{}.input[1]'.format(blenderPinLower))
-
-        elif self.side == 'r':
-            # upper
-            elbow_negateOutput = mc.shadingNode('multiplyDivide', asUtility=True, n='{}_elbowNegate'.format(self.prefix))
-            mc.setAttr('{}.operation'.format(elbow_negateOutput), 1)
-            mc.connectAttr('{}.outputX'.format(elbowGlobalLength), '{}.input1X'.format(elbow_negateOutput))
-            mc.setAttr('{}.input2X'.format(elbow_negateOutput), -1)
-            mc.connectAttr('{}.outputX'.format(elbow_negateOutput),'{}.input[1]'.format(blenderPinUpper))
-
-            # lower
-            wrist_negateOutput = mc.shadingNode('multiplyDivide', asUtility=True, n='{}_wristNegate'.format(self.prefix))
-            mc.setAttr('{}.operation'.format(wrist_negateOutput), 1)
-            mc.connectAttr('{}.outputX'.format(wristGlobalLength), '{}.input1X'.format(wrist_negateOutput))
-            mc.setAttr('{}.input2X'.format(wrist_negateOutput), -1)
-            mc.connectAttr('{}.outputX'.format(wrist_negateOutput), '{}.input[1]'.format(blenderPinLower))
-
-        # connect blender output to ik elbow joint translate X
-        mc.connectAttr('{}.output'.format(blenderPinUpper), '{}.{}'.format(ikJoints[1], lengthAxisAttr))
-        mc.connectAttr('{}.output'.format(blenderPinLower), '{}.{}'.format(ikJoints[2], lengthAxisAttr))
+        # connect blender outputs to ik joints' translate X
+        mc.connectAttr('{}.output'.format(blenderPinUpper), '{}.{}'.format(ikJoints[0], scaleAxisAttr))
+        mc.connectAttr('{}.output'.format(blenderPinLower), '{}.{}'.format(ikJoints[1], scaleAxisAttr))
 
         mc.setAttr('{}.{}'.format(armCtr.C, stretch_attr), 1)
         mc.setAttr('{}.{}'.format(poleVectorCtr.C, pv_pin_attr), 0)
@@ -866,6 +773,118 @@ class Arm():
 
 
 
+def boneStretch( prefix, boneOrigLength, totalLimbLength, lengthAttr, stretchAttr, stretchDriver, forwardAxisPositive):
+    '''
+
+    :param prefix: prefix to name nodes created
+    :param boneOrigLength: original length of bone (no stretch amount)
+    :param totalLimbLength: sum of bone lengths making up the limb
+    :param lengthAttr: attribute to increase bone length manually
+    :param stretchBlender: attribute to blend between stretch and non-stretch bone length
+    :param stretchDriver: will drive our SDK, its the distance between the shoulder and end control
+    :param forwardAxisPositive: (bool) true if foward axis is positive, false if negative
+    :return: stretch/no stretch blender node
+    '''
+
+
+    # make blender node to switch between stretch and non-stretched amount
+    blenderStretch = mc.shadingNode('blendTwoAttr', asUtility=True,
+                                            n='{}_blender_stretch'.format(prefix))
+    mc.connectAttr(stretchAttr, '{}.attributesBlender'.format(blenderStretch))
+
+    # Multiply stretch amount by length multiplier
+    length_stretch_mult = mc.shadingNode('multiplyDivide', asUtility=True, n='{}_length_mult'.format(prefix))
+    mc.setAttr('{}.operation'.format(length_stretch_mult), 1)
+    mc.connectAttr(lengthAttr, '{}.input1X'.format(length_stretch_mult))
+
+    # Have leg stretchy SDK feed into this multDiv node
+    sdkDriven = '{}.input2X'.format(length_stretch_mult)
+
+
+    # Feed result of multDiv node to blender stretch value
+    mc.connectAttr('{}.outputX'.format(length_stretch_mult), '{}.input[1]'.format(blenderStretch))
+
+    # Feed result of multDiv node to blender non-stretch value
+    mc.connectAttr(lengthAttr, '{}.input[0]'.format(blenderStretch))
+
+
+    # Set up SDK to stretch arm after it's extended beyond its length
+
+    # upper leg
+    mc.setDrivenKeyframe(sdkDriven,
+                         currentDriver = stretchDriver,
+                         driverValue = totalLimbLength,
+                         value = 1.0,
+                         inTangentType = 'linear',
+                         outTangentType = 'linear')
+
+    mc.setDrivenKeyframe(sdkDriven,
+                         currentDriver = stretchDriver,
+                         driverValue = totalLimbLength * 2,
+                         value = 1.0 * 2,
+                         inTangentType='spline',
+                         outTangentType='spline')
+
+    animCurve = mc.keyframe(sdkDriven, query=True, name=True)[0]
+
+    if forwardAxisPositive:
+        mc.setAttr('{}.postInfinity'.format(animCurve), 1)
+
+    else:
+        mc.setAttr('{}.preInfinity'.format(animCurve), 1)
+
+    return blenderStretch
+
+
+def poleVectorPin( prefix, pinAttr, pvCtrl, boneLocator, boneOrigLength, globalCtrl, forwardAxisPositive):
+
+    """
+
+    :param prefix: prefix to name nodes created
+    :param pinAttr: (str) object.attribute of Pin switch
+    :param pvCtrl: (str) name of pole vector control
+    :param boneLocator: (str) name of locator positioned at the bone to pin
+    :param boneOrigLength: (float) value of bone length before stretching
+    :param globalCtrl: (str) name.attr of global scaling control
+    :param forwardAxisPositive: (bool) true if foward axis is positive, false if negative
+    :return: pin/no pin blender node
+    """
+
+    # make blender node which will blend between pin and no pin values
+    blenderPin = mc.shadingNode('blendTwoAttr', asUtility=True, n='{}_blenderPin'.format(prefix))
+    mc.connectAttr(pinAttr, '{}.attributesBlender'.format(blenderPin))
+
+    # get distance between boneLocator and PV control
+    bone_pv_dist = mc.shadingNode('distanceBetween', asUtility=True,
+                                      n='{}_bone_2_pv_distance'.format(prefix))
+    # connect distance node to shoulder location and pv ctr world matrix
+    mc.connectAttr('{}.worldMatrix'.format(boneLocator), '{}.inMatrix1'.format(bone_pv_dist))
+    mc.connectAttr('{}.worldMatrix'.format(pvCtrl), '{}.inMatrix2'.format(bone_pv_dist))
+
+    # make multiply divide node to take into account global scale
+    boneGlobalLength = mc.shadingNode('multiplyDivide', asUtility=True,
+                                       n='{}_boneGlobalLength'.format(prefix))
+    mc.setAttr('{}.operation'.format(boneGlobalLength), 2)
+    mc.connectAttr('{}.distance'.format(bone_pv_dist), '{}.input1X'.format(boneGlobalLength))
+    mc.connectAttr(globalCtrl, '{}.input2X'.format(boneGlobalLength))
+
+
+    # divide new limb length by original limb length
+    boneLengthScale = mc.shadingNode('multiplyDivide', asUtility=True,
+                                      n='{}_boneLengthScale'.format(prefix))
+    mc.setAttr('{}.operation'.format(boneLengthScale), 2)
+
+    if not forwardAxisPositive:
+        boneOrigLength = boneOrigLength * (-1)
+
+    mc.setAttr('{}.input2X'.format(boneLengthScale), boneOrigLength)
+
+    # feed new limb length value to boneLengthScale node
+    mc.connectAttr('{}.outputX'.format(boneGlobalLength), '{}.input1X'.format(boneLengthScale))
+    # connect distance from shoulder to pv ctr to blender input
+    mc.connectAttr('{}.outputX'.format(boneLengthScale), '{}.input[1]'.format(blenderPin))
+
+    return blenderPin
 
 
 
