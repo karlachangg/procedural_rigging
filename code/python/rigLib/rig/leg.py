@@ -365,16 +365,23 @@ class Leg():
         mc.parent(pvNoFollow, self.rigmodule.partsGrp)
         mc.matchTransform(pvNoFollow, poleVectorCtr.C)
 
-        # pole vector position setup
+        # create PV follow object and setup
         poleAimLeg = mc.group(n = '{}_poleAim'.format(self.prefix), em = 1)
         upVector = mc.group(n = '{}_pv_upVec'.format(self.prefix), em = 1)
         mc.delete(mc.parentConstraint(legCtr.C, upVector, mo=0))
         mc.parent(upVector, self.rigmodule.partsGrp)
-        mc.parentConstraint(legCtr.C, upVector, sr = 'x', mo = 1)
-        mc.pointConstraint(ikJoints[0], poleAimLeg, mo = 0)
+        #mc.parentConstraint(legCtr.C, upVector, sr = 'x', mo = 1)
+        mc.parentConstraint(legCtr.C, upVector, mo=1)
+        mc.pointConstraint(ikJoints[0], poleAimLeg, mo=0)
 
-        poleAimConstraint = mc.aimConstraint(legCtr.C, poleAimLeg, aimVector = (1,0,0), upVector = (0,0,1),
-                         worldUpType = 'objectRotation', worldUpVector = (0, 0, 1), worldUpObject = upVector,  mo=0)[0]
+        # The pole aim axis will depend on the orientation of the foot control.. it should be the axis pointing out,
+        # not in the direction of the IK bend. But it will change if we orient the end ctr to the bone or to world
+        # TO DO: set up pole axis, and aim constraint up and aim vectors in a smarter way. Its hard coded right now
+
+        poleAimAxis = 'y'
+
+        poleAimConstraint = mc.aimConstraint(legCtr.C, poleAimLeg, aimVector = (0,1,0), upVector = (1,0,0),
+                         worldUpType = 'objectRotation', worldUpVector = (1, 0, 0), worldUpObject = upVector,  mo=0)[0]
 
         poleOffsetFollow_noScale = mc.group(n = '{}_poleOffsetFollow_noScale'.format(self.prefix), em = 1)
         mc.pointConstraint(poleAimLeg, poleOffsetFollow_noScale , mo=0)
@@ -399,7 +406,6 @@ class Leg():
         mc.parent(pv_constraint, self.rigmodule.noXformGrp)
 
         # attach objects to controls
-        #mc.parentConstraint(legCtr.C, legIK)
         mc.poleVectorConstraint(poleVectorCtr.C, legIK)
 
         # attach to hip pivot
@@ -412,7 +418,19 @@ class Leg():
 
         spin_attr = 'Spin'
         mc.addAttr(legCtr.C, ln = spin_attr, at='double', dv=0, k=1)
-        mc.connectAttr('{}.{}'.format(legCtr.C, spin_attr), '{}.offsetX'.format(poleAimConstraint))
+
+        self.elbowSpinAxis = self.forwardAxis
+
+        if 'x' in poleAimAxis:
+            spinAxisAttr = 'offsetX'
+        elif 'y' in poleAimAxis:
+            spinAxisAttr = 'offsetY'
+        elif 'z' in poleAimAxis:
+            spinAxisAttr = 'offsetZ'
+
+        mc.connectAttr('{}.{}'.format(legCtr.C, spin_attr), '{}.{}'.format(poleAimConstraint, spinAxisAttr))
+
+
 
         # make pole vector connection line
 
@@ -510,7 +528,6 @@ class Leg():
             fAxisDirection = 1
 
         blenderStretchUpper = boneStretch(prefix='{}_bone1'.format(self.prefix),
-                                             boneOrigLength = upperLeg_length,
                                              totalLimbLength = legLength,
                                              lengthAttr='{}.{}'.format(legCtr.C, length1_attr),
                                              stretchAttr=self.StretchyAttr,
@@ -519,7 +536,6 @@ class Leg():
                                              )
 
         blenderStretchLower = boneStretch(prefix='{}_bone2'.format(self.prefix),
-                                             boneOrigLength=lowerLeg_length,
                                              totalLimbLength= legLength,
                                              lengthAttr='{}.{}'.format(legCtr.C, length2_attr),
                                              stretchAttr=self.StretchyAttr,
@@ -570,413 +586,6 @@ class Leg():
 
 
 
-
-    def buildQuadIK(self, buildFoot=True):
-
-        # duplicate leg joints to make IK joints
-        ikJoints = joint.duplicateChain(self.legJoints, 'jnt', 'IK_jnt')
-        mc.parent(ikJoints[0], self.rigmodule.jointsGrp)
-
-        # Make controls
-        controls = []
-        legCtr = control.Control(prefix='{}_leg_ik'.format(self.prefix), translateTo = self.ikJoints[-1],
-                                 scale= self.rigScale, parent=self.rigmodule.controlsGrp, shape='square')
-        poleVectorCtr = control.Control(prefix='{}_leg_pv'.format(self.prefix), translateTo=ikJoints[1], rotateTo = ikJoints[1],
-                                        scale=self.rigScale * 0.5, parent=self.rigmodule.controlsGrp, shape='orb')
-
-        controls = [legCtr, poleVectorCtr]
-
-        # move pole vector ctr
-        units = 2.5
-
-        if self.kneeDirection == 'x' or self.kneeDirection == '-x':
-            x, y, z = True, False, False
-
-        elif self.kneeDirection == 'y' or self.kneeDirection == '-y':
-            x, y, z = False, True, False
-
-        elif self.kneeDirection == 'z' or self.kneeDirection == '-z':
-            x, y, z = False, False, True
-
-        if '-' in self.kneeDirection:
-            units = units * -1
-
-        mc.move(units, poleVectorCtr.Off, x=x, y=y, z=z, os=1)
-
-        # make IK handles
-        legIK = mc.ikHandle(n='{}_wholeLeg_ikh'.format(self.prefix), sol='ikRPsolver', sj=ikJoints[0], ee=ikJoints[3])[0]
-        mc.hide(legIK)
-
-        kneeIK = mc.ikHandle(n='{}_Knee_ikh'.format(self.prefix), sol='ikSCsolver', sj=ikJoints[0], ee=ikJoints[2])[0]
-        mc.hide(kneeIK)
-
-        ankleIK = mc.ikHandle(n='{}_Ankle_ikh'.format(self.prefix), sol='ikSCsolver', sj=ikJoints[2], ee=ikJoints[3])[0]
-        mc.hide(ankleIK)
-
-
-
-
-        # create no follow PV locator
-        pvNoFollow = mc.spaceLocator(n='{}_pv_noFollow'.format(self.prefix))
-        mc.parent(pvNoFollow, self.rigmodule.partsGrp)
-        mc.matchTransform(pvNoFollow, poleVectorCtr.C)
-
-        # pole vector position setup
-        poleAimLeg = mc.group(n='{}_poleAim'.format(self.prefix), em=1)
-        upVector = mc.group(n='{}_pv_upVec'.format(self.prefix), em=1)
-        mc.delete(mc.parentConstraint(legCtr.C, upVector, mo=0))
-        mc.parent(upVector, self.rigmodule.partsGrp)
-        mc.parentConstraint(legCtr.C, upVector, sr='x', mo=1)
-        mc.pointConstraint(ikJoints[0], poleAimLeg, mo=0)
-
-        poleAimConstraint = mc.aimConstraint(legCtr.C, poleAimLeg, aimVector=(1, 0, 0), upVector=(0, 0, 1),
-                                             worldUpType='objectRotation', worldUpVector=(0, 0, 1),
-                                             worldUpObject = upVector, mo=0)[0]
-
-        poleOffsetFollow_noScale = mc.group(n='{}_poleOffsetFollow_noScale'.format(self.prefix), em=1)
-        mc.pointConstraint(poleAimLeg, poleOffsetFollow_noScale, mo=0)
-        mc.orientConstraint(poleAimLeg, poleOffsetFollow_noScale, mo=0)
-        poleOffsetFollow = mc.group(n='{}_poleOffsetFollow'.format(self.prefix), em=1)
-        mc.delete(mc.parentConstraint(poleVectorCtr.C, poleOffsetFollow, mo=0))
-        mc.parentConstraint(poleOffsetFollow_noScale, poleOffsetFollow, mo=1)
-        mc.parent(poleAimLeg, self.rigmodule.partsGrp)
-        mc.parent(poleOffsetFollow_noScale, self.rigmodule.partsGrp)
-        mc.parent(poleOffsetFollow, self.rigmodule.partsGrp)
-
-        # constrain pv
-        pv_constraint = mc.parentConstraint(poleOffsetFollow, pvNoFollow, poleVectorCtr.Off, mo=1)[0]
-        weights = mc.parentConstraint(pv_constraint, q=1, weightAliasList=1)
-
-        # setup pv follow switch
-        pv_follow_attr = 'Follow'
-        mc.addAttr(poleVectorCtr.C, ln=pv_follow_attr, at='double', min=0, max=1, dv=1, k=1)
-        mc.connectAttr('{}.{}'.format(poleVectorCtr.C, pv_follow_attr), '{}.{}'.format(pv_constraint, weights[0]))
-        reverse = mc.shadingNode('reverse', asUtility=True, n='{}_pvFollow_reverse'.format(self.prefix))
-        mc.connectAttr('{}.{}'.format(poleVectorCtr.C, pv_follow_attr), '{}.inputX'.format(reverse))
-        mc.connectAttr('{}.outputX'.format(reverse), '{}.{}'.format(pv_constraint, weights[1]))
-        mc.parent(pv_constraint, self.rigmodule.noXformGrp)
-
-
-        # Pole vector constraint
-        mc.poleVectorConstraint(poleVectorCtr.C, legIK)
-
-        # Connect major parts of the leg
-        #mc.orientConstraint(legCtr.C, ikJoints[2], mo=1)
-
-
-        if buildFoot == False:
-            mc.parentConstraint(legCtr.C, legIK)
-
-        # Drive IK handles
-        mc.parent( ankleIK, legCtr.C,)
-        kneeIKGrp = mc.group(n = '{}_kneeIKGrp'.format(self.prefix), em = 1)
-        mc.delete(mc.parentConstraint(kneeIK, kneeIKGrp, mo = 0))
-        mc.parent(kneeIK, kneeIKGrp)
-        mc.parent(kneeIKGrp, self.rigmodule.partsGrp)
-        mc.parentConstraint(legCtr.C, kneeIKGrp, mo = 1)
-
-        # Add Leg swivel attribute
-
-        spin_attr = 'Spin'
-        mc.addAttr(legCtr.C, ln=spin_attr, at='double', dv=0, k=1)
-        mc.connectAttr('{}.{}'.format(legCtr.C, spin_attr), '{}.offsetX'.format(poleAimConstraint))
-
-
-        # attach to hip pivot
-        constraint = mc.pointConstraint(self.hipPivotJoint, ikJoints[0], mo=1)[0]
-        constraintGrp = mc.group(constraint, n='{}_ik_constraintGrp'.format(self.prefix))
-        mc.parent(constraintGrp, self.baseRig.noXformGrp)
-
-
-
-        # make pole vector connection line
-
-        pvLinePos1 = mc.xform(ikJoints[1], q=1, t=1, ws=1)
-        pvLinePos2 = mc.xform(poleVectorCtr.C, q=1, t=1, ws=1)
-        poleVectorCurve = mc.curve(n='{}_pv_curve'.format(self.prefix), d=1, p=[pvLinePos1, pvLinePos2])
-
-        mc.cluster('{}.cv[0]'.format(poleVectorCurve), n='{}_pv1_cls'.format(self.prefix),
-                   wn=[ikJoints[1], ikJoints[1]],
-                   bs=True)
-        mc.cluster('{}.cv[1]'.format(poleVectorCurve), n='{}_pv2_cls'.format(self.prefix),
-                   wn=[poleVectorCtr.C, poleVectorCtr.C], bs=True)
-
-        mc.parent(poleVectorCurve, self.rigmodule.controlsGrp)
-        mc.setAttr('{}.template'.format(poleVectorCurve), 1)
-        mc.setAttr('{}.it'.format(poleVectorCurve), 0)
-
-
-
-
-
-
-        # make stretchy leg
-
-        # Create group to follow hip location
-        followHip = mc.group(n='{}_IKHipFollow'.format(self.prefix), em=1)
-        mc.parentConstraint(self.hipPivotJoint, followHip, mo=0)
-        mc.parent(followHip, self.rigmodule.partsGrp)
-
-        # Create group to follow foot IK control
-        followFoot = mc.group(n='{}_IKFootFollow'.format(self.prefix), em=1)
-        mc.delete(mc.parentConstraint(legCtr.C, followFoot, mo=0))
-        # create empty group under ik leg ctr
-        followLegIK = mc.group(n='{}_IKLegFollow'.format(self.prefix), em=1)
-        mc.delete(mc.parentConstraint(legCtr.C, followLegIK, mo=0))
-        mc.parent(followLegIK, legCtr.C)
-        # parent constrain followFoot group to group under ik leg ctr
-        mc.parentConstraint(followLegIK, followFoot, mo=0)
-        mc.parent(followFoot, self.rigmodule.partsGrp)
-
-        # create a distance node to get the length between the two groups
-        leg_dist = mc.shadingNode('distanceBetween', asUtility=True, n='{}_leg_length'.format(self.prefix))
-        # connect distance node to pv ctr world matrix and group positioned at wrist
-        mc.connectAttr('{}.worldMatrix'.format(followHip), '{}.inMatrix1'.format(leg_dist))
-        mc.connectAttr('{}.worldMatrix'.format(followFoot), '{}.inMatrix2'.format(leg_dist))
-        # divide leg length by global scale
-        leg_dist_global = mc.shadingNode('multiplyDivide', asUtility=True,
-                                         n='{}_leg_distance_global'.format(self.prefix))
-        mc.setAttr('{}.operation'.format(leg_dist_global), 2)
-        mc.connectAttr('{}.distance'.format(leg_dist), '{}.input1X'.format(leg_dist_global))
-        mc.connectAttr('{}.sx'.format(self.baseRig.global1Ctrl.C), '{}.input2X'.format(leg_dist_global))
-
-        # Negate leg distance value for right side
-
-        if self.side == 'r':
-            leg_dist_negative = mc.shadingNode('multiplyDivide', asUtility=True,
-                                               n='{}_leg_distance_negative'.format(self.prefix))
-            mc.setAttr('{}.operation'.format(leg_dist_negative), 1)
-            mc.connectAttr('{}.outputX'.format(leg_dist_global), '{}.input1X'.format(leg_dist_negative))
-            mc.setAttr('{}.input2X'.format(leg_dist_negative), -1)
-            sdkDriver = '{}.outputX'.format(leg_dist_negative)
-        if self.side == 'l':
-            sdkDriver = '{}.outputX'.format(leg_dist_global)
-
-        # Get the original length of the upper and lower leg joints
-        upperLeg_length = mc.getAttr('{}.tx'.format(ikJoints[1]))
-        lowerLeg_length = mc.getAttr('{}.tx'.format(ikJoints[2]))
-        ankle_length = mc.getAttr('{}.tx'.format(ikJoints[3]))
-
-        # Calculate the length of fully extended leg
-        legLength = upperLeg_length + lowerLeg_length + ankle_length
-
-        # Create blender for stretchy leg setup
-        stretch_attr = 'Stretchy'
-        mc.addAttr(legCtr.C, ln=stretch_attr, at='double', min=0, max=1, dv=0, k=1)
-
-        # Create class member so we can access later
-        self.StretchyAttr = '{}.{}'.format(legCtr.C, stretch_attr)
-
-        # make blender node for upper leg
-        blenderUpperleg = mc.shadingNode('blendTwoAttr', asUtility=True, n='{}_blenderLegUpper'.format(self.prefix))
-        mc.connectAttr('{}.{}'.format(legCtr.C, stretch_attr), '{}.attributesBlender'.format(blenderUpperleg))
-
-        # make blender node for lower leg
-        blenderLowerleg = mc.shadingNode('blendTwoAttr', asUtility=True, n='{}_blenderLegLower'.format(self.prefix))
-        mc.connectAttr('{}.{}'.format(legCtr.C, stretch_attr), '{}.attributesBlender'.format(blenderLowerleg))
-
-        # make blender node for ankle bone
-        blenderAnkleBone = mc.shadingNode('blendTwoAttr', asUtility=True, n='{}_blenderAnkleBone'.format(self.prefix))
-        mc.connectAttr('{}.{}'.format(legCtr.C, stretch_attr), '{}.attributesBlender'.format(blenderAnkleBone))
-
-        # Make length attributes
-        length1_attr = 'Length1'
-        length2_attr = 'Length2'
-        mc.addAttr(legCtr.C, ln=length1_attr, at='double', min=1, dv=1, k=1)
-        mc.addAttr(legCtr.C, ln=length2_attr, at='double', min=1, dv=1, k=1)
-
-        # Multiply stretchy leg by length
-        leg_length1_mult = mc.shadingNode('multiplyDivide', asUtility=True, n='{}_length1_mult'.format(self.prefix))
-        mc.setAttr('{}.operation'.format(leg_length1_mult), 1)
-        mc.connectAttr('{}.{}'.format(legCtr.C, length1_attr), '{}.input1X'.format(leg_length1_mult))
-
-        leg_length2_mult = mc.shadingNode('multiplyDivide', asUtility=True, n='{}_length2_mult'.format(self.prefix))
-        mc.setAttr('{}.operation'.format(leg_length2_mult), 1)
-        mc.connectAttr('{}.{}'.format(legCtr.C, length2_attr), '{}.input1X'.format(leg_length2_mult))
-
-        # Have leg stretchy SDK feed into this multDiv node
-        sdkDrivenUpper = '{}.input2X'.format(leg_length1_mult)
-        sdkDrivenLower = '{}.input2X'.format(leg_length2_mult)
-
-        # Since we are not making a length attribute for the ankle bone, set the sdk Driven to be the blender
-        sdkDrivenAnkleBone = '{}.input[1]'.format(blenderAnkleBone)
-
-        # connect multDiv node to blender input
-        mc.connectAttr('{}.outputX'.format(leg_length1_mult), '{}.input[1]'.format(blenderUpperleg))
-        mc.connectAttr('{}.outputX'.format(leg_length2_mult), '{}.input[1]'.format(blenderLowerleg))
-
-        # Multiply non stretchy leg by length
-        leg_length1_noStretch_mult = mc.shadingNode('multiplyDivide', asUtility=True,
-                                                    n='{}_length1_noStretch_mult'.format(self.prefix))
-        mc.setAttr('{}.operation'.format(leg_length1_noStretch_mult), 1)
-        mc.connectAttr('{}.{}'.format(legCtr.C, length1_attr), '{}.input1X'.format(leg_length1_noStretch_mult))
-        mc.setAttr('{}.input2X'.format(leg_length1_noStretch_mult), upperLeg_length)
-
-        # connect output to blender input
-        mc.connectAttr('{}.outputX'.format(leg_length1_noStretch_mult), '{}.input[0]'.format(blenderUpperleg))
-
-        leg_length2_noStretch_mult = mc.shadingNode('multiplyDivide', asUtility=True,
-                                                    n='{}_length2_noStretch_mult'.format(self.prefix))
-        mc.setAttr('{}.operation'.format(leg_length2_noStretch_mult), 1)
-        mc.connectAttr('{}.{}'.format(legCtr.C, length2_attr), '{}.input1X'.format(leg_length2_noStretch_mult))
-        mc.setAttr('{}.input2X'.format(leg_length2_noStretch_mult), lowerLeg_length)
-        # connect upper leg bone original length to blender input
-        mc.connectAttr('{}.outputX'.format(leg_length2_noStretch_mult), '{}.input[0]'.format(blenderLowerleg))
-
-        # Since we are not adding a length attribute for the ankle bone, set the blender input 0 to the original leg length value
-        mc.setAttr('{}.input[0]'.format(blenderAnkleBone), ankle_length)
-
-        # Set up SDK to stretch leg after it's extended beyond its length
-
-        # upper leg
-        mc.setDrivenKeyframe(sdkDrivenUpper,
-                             currentDriver=sdkDriver,
-                             driverValue=legLength,
-                             value=upperLeg_length,
-                             inTangentType='linear',
-                             outTangentType='linear')
-
-        mc.setDrivenKeyframe(sdkDrivenUpper,
-                             currentDriver=sdkDriver,
-                             driverValue=legLength * 2,
-                             value=upperLeg_length * 2,
-                             inTangentType='spline',
-                             outTangentType='spline')
-
-        animCurveUpperLeg = mc.keyframe(sdkDrivenUpper, query=True, name=True)[0]
-
-        if self.side == 'l':
-            mc.setAttr('{}.postInfinity'.format(animCurveUpperLeg), 1)
-        elif self.side == 'r':
-            mc.setAttr('{}.preInfinity'.format(animCurveUpperLeg), 1)
-
-        # lower leg
-        mc.setDrivenKeyframe(sdkDrivenLower,
-                             currentDriver=sdkDriver,
-                             driverValue=legLength,
-                             value=lowerLeg_length,
-                             inTangentType='linear',
-                             outTangentType='linear')
-
-        mc.setDrivenKeyframe(sdkDrivenLower,
-                             currentDriver=sdkDriver,
-                             driverValue=legLength * 2,
-                             value=lowerLeg_length * 2,
-                             inTangentType='spline',
-                             outTangentType='spline')
-
-        animCurveLowerLeg = mc.keyframe(sdkDrivenLower, query=True, name=True)[0]
-        if self.side == 'l':
-            mc.setAttr('{}.postInfinity'.format(animCurveLowerLeg), 1)
-        elif self.side == 'r':
-            mc.setAttr('{}.preInfinity'.format(animCurveLowerLeg), 1)
-
-        # ankle bone
-
-        mc.setDrivenKeyframe(sdkDrivenAnkleBone,
-                             currentDriver=sdkDriver,
-                             driverValue=legLength,
-                             value = ankle_length,
-                             inTangentType='linear',
-                             outTangentType='linear')
-
-        mc.setDrivenKeyframe(sdkDrivenAnkleBone,
-                             currentDriver=sdkDriver,
-                             driverValue=legLength * 2,
-                             value = ankle_length * 2,
-                             inTangentType='spline',
-                             outTangentType='spline')
-
-        animCurveAnkleBone = mc.keyframe(sdkDrivenAnkleBone, query=True, name=True)[0]
-
-        if self.side == 'l':
-            mc.setAttr('{}.postInfinity'.format(animCurveAnkleBone), 1)
-        elif self.side == 'r':
-            mc.setAttr('{}.preInfinity'.format(animCurveAnkleBone), 1)
-
-        # make knee pin to pv setup
-        pv_pin_attr = 'Pin'
-        mc.addAttr(poleVectorCtr.C, ln=pv_pin_attr, at='double', min=0, max=1, dv=0, k=1)
-
-        # make blender node for upper leg
-        blenderPinUpper = mc.shadingNode('blendTwoAttr', asUtility=True, n='{}_blenderPinUpper'.format(self.prefix))
-        mc.connectAttr('{}.{}'.format(poleVectorCtr.C, pv_pin_attr), '{}.attributesBlender'.format(blenderPinUpper))
-        # make blender node for lower leg
-        blenderPinLower = mc.shadingNode('blendTwoAttr', asUtility=True, n='{}_blenderPinLower'.format(self.prefix))
-        mc.connectAttr('{}.{}'.format(poleVectorCtr.C, pv_pin_attr), '{}.attributesBlender'.format(blenderPinLower))
-
-        # connect stretch/no stretch blender output to pin/noPin blender input
-        mc.connectAttr('{}.output'.format(blenderUpperleg), '{}.input[0]'.format(blenderPinUpper))
-        mc.connectAttr('{}.output'.format(blenderLowerleg), '{}.input[0]'.format(blenderPinLower))
-
-        # get distance between hipFollow and PV control
-        hip_pv_dist = mc.shadingNode('distanceBetween', asUtility=True,
-                                     n='{}_hip_2_pv_distance'.format(self.prefix))
-
-        # connect distance node to shoulder location and pv ctr world matrix
-        mc.connectAttr('{}.worldMatrix'.format(followHip), '{}.inMatrix1'.format(hip_pv_dist))
-        mc.connectAttr('{}.worldMatrix'.format(poleVectorCtr.C), '{}.inMatrix2'.format(hip_pv_dist))
-
-        # make multiply divide node to take into account global scale
-        upperLegGlobalLength = mc.shadingNode('multiplyDivide', asUtility=True,
-                                              n='{}_upperLegGlobalLength'.format(self.prefix))
-        mc.setAttr('{}.operation'.format(upperLegGlobalLength), 2)
-        mc.connectAttr('{}.distance'.format(hip_pv_dist), '{}.input1X'.format(upperLegGlobalLength))
-        mc.connectAttr('{}.scaleX'.format(self.baseRig.global1Ctrl.C), '{}.input2X'.format(upperLegGlobalLength))
-
-        # Now do lower leg
-        # get distance between followFoot and PV control
-        pv_foot_dist = mc.shadingNode('distanceBetween', asUtility=True,
-                                      n='{}_pv_2_foot_distance'.format(self.prefix))
-
-        # connect distance node to shoulder location and pv ctr world matrix
-        mc.connectAttr('{}.worldMatrix'.format(followFoot), '{}.inMatrix1'.format(pv_foot_dist))
-        mc.connectAttr('{}.worldMatrix'.format(poleVectorCtr.C), '{}.inMatrix2'.format(pv_foot_dist))
-
-        # make multiply divide node to take into account global scale
-        lowerLegGlobalLength = mc.shadingNode('multiplyDivide', asUtility=True,
-                                              n='{}_lowerLegGlobalLength'.format(self.prefix))
-        mc.setAttr('{}.operation'.format(lowerLegGlobalLength), 2)
-        mc.connectAttr('{}.distance'.format(pv_foot_dist), '{}.input1X'.format(lowerLegGlobalLength))
-        mc.connectAttr('{}.scaleX'.format(self.baseRig.global1Ctrl.C), '{}.input2X'.format(lowerLegGlobalLength))
-
-        # connect distance from shoulder to pv ctr to blender input
-        if self.side == 'l':
-            mc.connectAttr('{}.outputX'.format(upperLegGlobalLength), '{}.input[1]'.format(blenderPinUpper))
-            mc.connectAttr('{}.outputX'.format(lowerLegGlobalLength), '{}.input[1]'.format(blenderPinLower))
-
-        elif self.side == 'r':
-            # upper leg
-            upperLeg_negateOutput = mc.shadingNode('multiplyDivide', asUtility=True,
-                                                   n='{}_upperLegNegate'.format(self.prefix))
-            mc.setAttr('{}.operation'.format(upperLeg_negateOutput), 1)
-            mc.connectAttr('{}.outputX'.format(upperLegGlobalLength), '{}.input1X'.format(upperLeg_negateOutput))
-            mc.setAttr('{}.input2X'.format(upperLeg_negateOutput), -1)
-            mc.connectAttr('{}.outputX'.format(upperLeg_negateOutput), '{}.input[1]'.format(blenderPinUpper))
-
-            # lower leg
-            lowerLeg_negateOutput = mc.shadingNode('multiplyDivide', asUtility=True,
-                                                   n='{}_lowerLegNegate'.format(self.prefix))
-            mc.setAttr('{}.operation'.format(lowerLeg_negateOutput), 1)
-            mc.connectAttr('{}.outputX'.format(lowerLegGlobalLength), '{}.input1X'.format(lowerLeg_negateOutput))
-            mc.setAttr('{}.input2X'.format(lowerLeg_negateOutput), -1)
-            mc.connectAttr('{}.outputX'.format(lowerLeg_negateOutput), '{}.input[1]'.format(blenderPinLower))
-
-        # connect blender outputs to ik joints' translate X
-        mc.connectAttr('{}.output'.format(blenderPinUpper), '{}.tx'.format(ikJoints[1]))
-        mc.connectAttr('{}.output'.format(blenderPinLower), '{}.tx'.format(ikJoints[2]))
-
-        # for the ankle bone, connect it to the stretch/ no stretch blender
-        mc.connectAttr('{}.output'.format(blenderAnkleBone), '{}.tx'.format(ikJoints[3]))
-        mc.setAttr('{}.{}'.format(legCtr.C, stretch_attr), 1)
-        mc.setAttr('{}.{}'.format(poleVectorCtr.C, pv_pin_attr), 0)
-
-
-
-        return {'joints': ikJoints, 'controls': controls, 'poleVecLine': poleVectorCurve}
-
-
-
     def setInitialValues(self,
                          FKIKMode = 1,
                          Stretchy = 1
@@ -987,11 +596,10 @@ class Leg():
 
 
 
-def boneStretch( prefix, boneOrigLength, totalLimbLength, lengthAttr, stretchAttr, stretchDriver, forwardAxisPositive):
+def boneStretch( prefix, totalLimbLength, lengthAttr, stretchAttr, stretchDriver, forwardAxisPositive):
     '''
 
     :param prefix: prefix to name nodes created
-    :param boneOrigLength: original length of bone (no stretch amount)
     :param totalLimbLength: sum of bone lengths making up the limb
     :param lengthAttr: attribute to increase bone length manually
     :param stretchBlender: attribute to blend between stretch and non-stretch bone length

@@ -94,12 +94,13 @@ class Dog(char.Character):
 
         # Left Front Leg
 
-        armJoints = ['shoulder_jnt', 'elbow_jnt', 'wrist_jnt']
+        armJoints = ['shoulder_jnt', 'elbow_jnt', 'wrist_jnt', 'fingers_1_jnt']
         scapulaJnt = 'scapula_jnt'
+        toeEndJnt = 'fingers_2_jnt'
 
 
         self.leftArmRig = limb.Limb(
-            type = 'planti',
+            type = 'digi',
             joints = armJoints,
             scapulaJoint = scapulaJnt,
             prefix='frontLeg',
@@ -109,6 +110,7 @@ class Dog(char.Character):
             forwardAxis= '-x',
             moveSwitchCtr='x',
             ikCtrOrient='world',
+            toeEndJoint = toeEndJnt,
             rigScale=self.sceneScale,
             baseRig=baseRig
         )
@@ -121,7 +123,7 @@ class Dog(char.Character):
 
 
         self.rightArmRig = limb.Limb(
-            type = 'planti',
+            type = 'digi',
             joints=armJoints,
             scapulaJoint=scapulaJnt,
             prefix='frontLeg',
@@ -131,6 +133,7 @@ class Dog(char.Character):
             forwardAxis='x',
             moveSwitchCtr='-x',
             ikCtrOrient='world',
+            toeEndJoint = toeEndJnt,
             rigScale=self.sceneScale,
             baseRig=baseRig
         )
@@ -143,7 +146,8 @@ class Dog(char.Character):
 
         # Left Back Leg
 
-        legJoints = ['hip_jnt', 'knee_jnt', 'ankle_jnt']
+        legJoints = ['hip_jnt', 'knee_jnt', 'ankle_jnt', 'toes_1_jnt']
+        backToeEndJnt = 'toes_2_jnt'
         #footJoints = ['backFoot_jnt', 'backToe_jnt', 'backToeEnd_jnt']
         #hipPivotJoint = 'hip_pivot_jnt'
 
@@ -152,7 +156,7 @@ class Dog(char.Character):
         #outer_loc = 'backFoot_outer'
 
         self.leftLegRig = limb.Limb(
-            type = 'planti',
+            type = 'digi',
             joints = legJoints,
             prefix = 'backLeg',
             side = 'l',
@@ -161,6 +165,7 @@ class Dog(char.Character):
             forwardAxis='-x',
             moveSwitchCtr = 'x',
             ikCtrOrient = 'world',
+            toeEndoint = backToeEndJnt,
             rigScale=self.sceneScale,
             baseRig=baseRig
         )
@@ -177,7 +182,7 @@ class Dog(char.Character):
 
         # Right Back Leg
         self.rightLegRig = limb.Limb(
-            type='planti',
+            type='digi',
             joints=legJoints,
             prefix='backLeg',
             side='r',
@@ -186,6 +191,7 @@ class Dog(char.Character):
             forwardAxis = 'x',
             moveSwitchCtr='-x',
             ikCtrOrient='world',
+            toeEndoint = backToeEndJnt,
             rigScale = self.sceneScale,
             baseRig=baseRig
         )
@@ -200,6 +206,7 @@ class Dog(char.Character):
                         Stretchy = 1,
                         )
 
+        '''
         # left front foot
         toeJoints = ['fingers_1_jnt', 'fingers_2_jnt']
         heelLoc = 'frontFoot_heel'
@@ -325,7 +332,7 @@ class Dog(char.Character):
 
         self.rightBackFootRig.build()
 
-
+        '''
 
 
 

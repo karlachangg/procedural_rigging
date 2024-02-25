@@ -531,7 +531,6 @@ class Arm():
             fAxisDirection = 1
 
         blenderStretchUpper = boneStretch(prefix='{}_bone1'.format(self.prefix),
-                                          boneOrigLength=upperArm_length,
                                           totalLimbLength=armLength,
                                           lengthAttr='{}.{}'.format(armCtr.C, length1_attr),
                                           stretchAttr=self.StretchyAttr,
@@ -540,7 +539,6 @@ class Arm():
                                           )
 
         blenderStretchLower = boneStretch(prefix='{}_bone2'.format(self.prefix),
-                                          boneOrigLength=lowerArm_length,
                                           totalLimbLength=armLength,
                                           lengthAttr='{}.{}'.format(armCtr.C, length2_attr),
                                           stretchAttr=self.StretchyAttr,
@@ -773,11 +771,10 @@ class Arm():
 
 
 
-def boneStretch( prefix, boneOrigLength, totalLimbLength, lengthAttr, stretchAttr, stretchDriver, forwardAxisPositive):
+def boneStretch( prefix, totalLimbLength, lengthAttr, stretchAttr, stretchDriver, forwardAxisPositive):
     '''
 
     :param prefix: prefix to name nodes created
-    :param boneOrigLength: original length of bone (no stretch amount)
     :param totalLimbLength: sum of bone lengths making up the limb
     :param lengthAttr: attribute to increase bone length manually
     :param stretchBlender: attribute to blend between stretch and non-stretch bone length

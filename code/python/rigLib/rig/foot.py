@@ -35,7 +35,7 @@ class Foot():
             ):
 
         """
-        :param toeJoints: list(str), ankle - ballPivot - toeEnd
+        :param toeJoints: list(str), ballPivot - toeEnd
         :param heelLoc: str, locator at the heel pivot
         :param innerLoc: str, locator at the inner rocking pivot
         :param outerLoc: str, locator at the outer rocking pivot
@@ -262,230 +262,38 @@ class Foot():
 
         # Set up Roll
         roll_attr = 'Roll'
-        mc.addAttr(self.ikFootCtr.C, ln=roll_attr, at='double', dv=0, k=1)
-
         ball_angle_attr = 'Ball_Roll_Angle'
-        mc.addAttr(self.ikFootCtr.C, ln=ball_angle_attr, at='double', dv=0, k=1)
-        mc.setAttr('{}.{}'.format(self.ikFootCtr.C, ball_angle_attr), 45)
+        toe_angle_attr = 'Toe_Roll_Angle'
 
         # Create class member so we can access later
         self.BallRollAngleAttr = '{}.{}'.format(self.ikFootCtr.C, ball_angle_attr)
-
-        toe_angle_attr = 'Toe_Roll_Angle'
-        mc.addAttr(self.ikFootCtr.C, ln=toe_angle_attr, at='double', dv=0, k=1)
-        mc.setAttr('{}.{}'.format(self.ikFootCtr.C, toe_angle_attr), 60)
-
-        # Create class member so we can access later
         self.ToeRollAngleAttr = '{}.{}'.format(self.ikFootCtr.C, toe_angle_attr)
 
-        # Connect heel pivot
-        heelRoll_clamp = mc.shadingNode('clamp', asUtility=True,
-                                        n='{}_heelRoll_clamp'.format(self.prefix))
-
-        mc.connectAttr('{}.{}'.format(self.ikFootCtr.C, roll_attr), '{}.inputR'.format(heelRoll_clamp))
-        mc.setAttr('{}.minR'.format(heelRoll_clamp), -90)
-        mc.setAttr('{}.maxR'.format(heelRoll_clamp), 0)
-
-        if self.rollAxis == 'x' or self.rollAxis == '-x':
-            rollAxisAttr = 'rotateX'
-
-        elif self.rollAxis == 'y' or self.rollAxis == '-y':
-            rollAxisAttr = 'rotateY'
-
-        elif self.rollAxis == 'z' or self.rollAxis == '-z':
-            rollAxisAttr = 'rotateZ'
-
-        rollUpNegative = False
-        if '-' in self.rollAxis:
-            rollUpNegative = True
-
-        mc.connectAttr('{}.outputR'.format(heelRoll_clamp), '{}.{}'.format(heelCtr.Off, rollAxisAttr))
-
-        # Connect toe pivot
-        toeRoll_clamp = mc.shadingNode('clamp', asUtility=True,
-                                       n='{}_toeRoll_clamp'.format(self.prefix))
-
-        toeRoll_setRange = mc.shadingNode('setRange', asUtility=True,
-                                          n='{}_toeRoll_setRange'.format(self.prefix))
-
-        toeRoll_mult_percent = mc.shadingNode('multiplyDivide', asUtility=True,
-                                              n='{}_toeRoll_mult_percent'.format(self.prefix))
-
-        # Roll value goes into our clamp input
-        mc.connectAttr('{}.{}'.format(self.ikFootCtr.C, roll_attr), '{}.inputR'.format(toeRoll_clamp))
-        # Ball angle attr goes into our clamp minimum
-        mc.connectAttr('{}.{}'.format(self.ikFootCtr.C, ball_angle_attr), '{}.minR'.format(toeRoll_clamp))
-        # Toe angle attr goes into our clamp maximum
-        mc.connectAttr('{}.{}'.format(self.ikFootCtr.C, toe_angle_attr), '{}.maxR'.format(toeRoll_clamp))
-
-        # Remap our clamped values from zero to one
-        mc.connectAttr('{}.minR'.format(toeRoll_clamp), '{}.oldMinX'.format(toeRoll_setRange))
-        mc.connectAttr('{}.maxR'.format(toeRoll_clamp), '{}.oldMaxX'.format(toeRoll_setRange))
-        mc.setAttr('{}.minX'.format(toeRoll_setRange), 0)
-        mc.setAttr('{}.maxX'.format(toeRoll_setRange), 1)
-        mc.connectAttr('{}.inputR'.format(toeRoll_clamp), '{}.valueX'.format(toeRoll_setRange))
-
-        # Multiply the remapped value (percentage of roll between our ball and toe angles) by Roll amount
-        mc.connectAttr('{}.outValueX'.format(toeRoll_setRange), '{}.input1X'.format(toeRoll_mult_percent))
-        mc.connectAttr('{}.inputR'.format(toeRoll_clamp), '{}.input2X'.format(toeRoll_mult_percent))
-        mc.setAttr('{}.operation'.format(toeRoll_mult_percent), 1)
-
-        if rollUpNegative:
-
-            # Negate the roll value
-            toeRoll_mult_negate = mc.shadingNode('multiplyDivide', asUtility=True,
-                                                 n='{}_toeRoll_mult_negate'.format(self.prefix))
-
-            mc.connectAttr('{}.outputX'.format(toeRoll_mult_percent), '{}.input1X'.format(toeRoll_mult_negate))
-            mc.setAttr('{}.input2X'.format(toeRoll_mult_negate), -1)
-            mc.setAttr('{}.operation'.format(toeRoll_mult_negate), 1)
-
-            toeRollDriver = '{}.outputX'.format(toeRoll_mult_negate)
-
-
-
-        else:
-            toeRollDriver = '{}.outputX'.format(toeRoll_mult_percent)
-
-        # Feed the out value of our multiply node to toe_loc rotate axis
-        mc.connectAttr(toeRollDriver, '{}.{}'.format(toeEndCtr.Off, rollAxisAttr))
-
-        # Connect ball pivot
-        ballRoll_clamp = mc.shadingNode('clamp', asUtility=True,
-                                        n='{}_ballRoll_clamp'.format(self.prefix))
-
-        ballRoll_setRange = mc.shadingNode('setRange', asUtility=True,
-                                           n='{}_ballRoll_setRange'.format(self.prefix))
-
-        toeRoll_reverse = mc.shadingNode('reverse', asUtility=True,
-                                         n='{}_toeRoll_reverse'.format(self.prefix))
-
-        ballRoll_combine_percentages = mc.shadingNode('multiplyDivide', asUtility=True,
-                                                      n='{}_ballRoll_combine_percentages'.format(self.prefix))
-
-        ballRoll_mult_percent = mc.shadingNode('multiplyDivide', asUtility=True,
-                                               n='{}_ballRoll_mult_percent'.format(self.prefix))
-
-        # Roll value goes into our clamp input
-        mc.connectAttr('{}.{}'.format(self.ikFootCtr.C, roll_attr), '{}.inputR'.format(ballRoll_clamp))
-        # Clamp minimum set to zero
-        mc.setAttr('{}.minR'.format(ballRoll_clamp), 0)
-        # Ball angle attr goes into our clamp maximum
-        mc.connectAttr('{}.{}'.format(self.ikFootCtr.C, ball_angle_attr), '{}.maxR'.format(ballRoll_clamp))
-
-        # Remap our clamped values from zero to one
-        mc.connectAttr('{}.minR'.format(ballRoll_clamp), '{}.oldMinX'.format(ballRoll_setRange))
-        mc.connectAttr('{}.maxR'.format(ballRoll_clamp), '{}.oldMaxX'.format(ballRoll_setRange))
-        mc.setAttr('{}.minX'.format(ballRoll_setRange), 0)
-        mc.setAttr('{}.maxX'.format(ballRoll_setRange), 1)
-        mc.connectAttr('{}.inputR'.format(ballRoll_clamp), '{}.valueX'.format(ballRoll_setRange))
-
-        # Get the reciprocal of the toe range
-        mc.connectAttr('{}.outValueX'.format(toeRoll_setRange), '{}.inputX'.format(toeRoll_reverse))
-
-        # Multiply the range of the ball roll with the reciprocal range of the toe roll
-        mc.connectAttr('{}.outputX'.format(toeRoll_reverse), '{}.input1X'.format(ballRoll_combine_percentages))
-        mc.connectAttr('{}.outValueX'.format(ballRoll_setRange), '{}.input2X'.format(ballRoll_combine_percentages))
-        mc.setAttr('{}.operation'.format(ballRoll_combine_percentages), 1)
-
-        # Multiply the resulting percentage by the Roll amount
-        mc.connectAttr('{}.outputX'.format(ballRoll_combine_percentages), '{}.input1X'.format(ballRoll_mult_percent))
-        mc.connectAttr('{}.inputR'.format(ballRoll_clamp), '{}.input2X'.format(ballRoll_mult_percent))
-        mc.setAttr('{}.operation'.format(ballRoll_mult_percent), 1)
-
-        if rollUpNegative:
-
-            # Negate the roll value
-            ballRoll_mult_negate = mc.shadingNode('multiplyDivide', asUtility=True,
-                                                  n='{}_ballRoll_mult_negate'.format(self.prefix))
-
-            mc.connectAttr('{}.outputX'.format(ballRoll_mult_percent), '{}.input1X'.format(ballRoll_mult_negate))
-            mc.setAttr('{}.input2X'.format(ballRoll_mult_negate), -1)
-            mc.setAttr('{}.operation'.format(ballRoll_mult_negate), 1)
-
-            ballRollDriver = '{}.outputX'.format(ballRoll_mult_negate)
-
-
-
-        else:
-            ballRollDriver = '{}.outputX'.format(ballRoll_mult_percent)
-
-        # Feed the out value of our multiply node to ballCtr rotation
-        mc.connectAttr(ballRollDriver, '{}.{}'.format(ballCtr.Off, rollAxisAttr))
-
-
+       # Set up foot roll connections
+        footRoll(
+            footCtr = self.ikFootCtr,
+            roll_attr = roll_attr,
+            ball_angle_attr = ball_angle_attr,
+            toe_angle_attr = toe_angle_attr,
+            prefix = self.prefix,
+            rollAxis = self.rollAxis,
+            heelCtr = heelCtr,
+            ballCtr = ballCtr,
+            toeEndCtr = toeEndCtr,
+        )
 
         # Set up rock
-        rock_attr = 'Rock'
-        mc.addAttr(self.ikFootCtr.C, ln=rock_attr, at='double', dv=0, k=1)
-
-        if 'x' in self.rockAxis:
-            rockAxisAttr = 'rotateX'
-
-        elif 'y' in self.rockAxis:
-            rockAxisAttr = 'rotateY'
-
-        elif 'z' in self.rockAxis:
-            rockAxisAttr = 'rotateZ'
-
-        rotateOutNegative = False
-
-        if '-' in self.rockAxis:
-            rotateOutNegative = True
-
-        if rotateOutNegative:
-            rotateOuterDirection = -1
-            rotateInnerDirection = 1
-        else:
-            rotateOuterDirection = 1
-            rotateInnerDirection = -1
-
-
-        # Set up SDK to rock outer pivot
-        mc.setDrivenKeyframe('{}.{}'.format(outerPivot_Grp, rockAxisAttr),
-                             currentDriver='{}.{}'.format(self.ikFootCtr.C, rock_attr),
-                             driverValue=0,
-                             value=0,
-                             inTangentType='linear',
-                             outTangentType='linear')
-
-        mc.setDrivenKeyframe('{}.{}'.format(outerPivot_Grp, rockAxisAttr),
-                             currentDriver='{}.{}'.format(self.ikFootCtr.C, rock_attr),
-                             driverValue = 90,
-                             value = 90 * rotateOuterDirection,
-                             inTangentType='linear',
-                             outTangentType='linear')
-
-        # Set up SDK to rock inner pivot
-        mc.setDrivenKeyframe('{}.{}'.format(innerPivot_Grp, rockAxisAttr),
-                             currentDriver='{}.{}'.format(self.ikFootCtr.C, rock_attr),
-                             driverValue=0,
-                             value=0,
-                             inTangentType='linear',
-                             outTangentType='linear')
-
-        mc.setDrivenKeyframe('{}.{}'.format(innerPivot_Grp, rockAxisAttr),
-                             currentDriver='{}.{}'.format(self.ikFootCtr.C, rock_attr),
-                             driverValue= -90,
-                             value = 90 * rotateInnerDirection,
-                             inTangentType='linear',
-                             outTangentType='linear')
-
+        footRock(
+            footCtr = self.ikFootCtr,
+            rockAxis = self.rockAxis,
+            outer = outerPivot_Grp,
+            inner = innerPivot_Grp
+        )
 
 
         # Set some class properties we can call later
 
         return {'joints': ikJoints, 'controls': controls}
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -498,3 +306,228 @@ class Foot():
 
         mc.setAttr(self.BallRollAngleAttr, BallRollAngle)
         mc.setAttr(self.ToeRollAngleAttr, ToeRollAngle)
+
+
+
+
+
+def footRoll(
+            footCtr,
+            roll_attr,
+            ball_angle_attr,
+            toe_angle_attr,
+            prefix,
+            rollAxis,
+            heelCtr,
+            ballCtr,
+            toeEndCtr,
+
+):
+
+
+    # Add roll attributes to foot control
+    mc.addAttr(footCtr.C, ln=roll_attr, at='double', dv=0, k=1)
+
+    mc.addAttr(footCtr.C, ln=ball_angle_attr, at='double', dv=0, k=1)
+    mc.setAttr('{}.{}'.format(footCtr.C, ball_angle_attr), 45)
+
+    mc.addAttr(footCtr.C, ln=toe_angle_attr, at='double', dv=0, k=1)
+    mc.setAttr('{}.{}'.format(footCtr.C, toe_angle_attr), 60)
+
+    # Connect heel pivot
+    heelRoll_clamp = mc.shadingNode('clamp', asUtility=True,
+                                    n='{}_heelRoll_clamp'.format(prefix))
+
+    mc.connectAttr('{}.{}'.format(footCtr.C, roll_attr), '{}.inputR'.format(heelRoll_clamp))
+    mc.setAttr('{}.minR'.format(heelRoll_clamp), -90)
+    mc.setAttr('{}.maxR'.format(heelRoll_clamp), 0)
+
+    if 'x' in rollAxis:
+        rollAxisAttr = 'rotateX'
+
+    elif 'y' in rollAxis:
+        rollAxisAttr = 'rotateY'
+
+    elif 'z' in rollAxis:
+        rollAxisAttr = 'rotateZ'
+
+    rollUpNegative = False
+    if '-' in rollAxis:
+        rollUpNegative = True
+
+    mc.connectAttr('{}.outputR'.format(heelRoll_clamp), '{}.{}'.format(heelCtr.Off, rollAxisAttr))
+
+    # Connect toe pivot
+    toeRoll_clamp = mc.shadingNode('clamp', asUtility=True,
+                                   n='{}_toeRoll_clamp'.format(prefix))
+
+    toeRoll_setRange = mc.shadingNode('setRange', asUtility=True,
+                                      n='{}_toeRoll_setRange'.format(prefix))
+
+    toeRoll_mult_percent = mc.shadingNode('multiplyDivide', asUtility=True,
+                                          n='{}_toeRoll_mult_percent'.format(prefix))
+
+    # Roll value goes into our clamp input
+    mc.connectAttr('{}.{}'.format(footCtr.C, roll_attr), '{}.inputR'.format(toeRoll_clamp))
+    # Ball angle attr goes into our clamp minimum
+    mc.connectAttr('{}.{}'.format(footCtr.C, ball_angle_attr), '{}.minR'.format(toeRoll_clamp))
+    # Toe angle attr goes into our clamp maximum
+    mc.connectAttr('{}.{}'.format(footCtr.C, toe_angle_attr), '{}.maxR'.format(toeRoll_clamp))
+
+    # Remap our clamped values from zero to one
+    mc.connectAttr('{}.minR'.format(toeRoll_clamp), '{}.oldMinX'.format(toeRoll_setRange))
+    mc.connectAttr('{}.maxR'.format(toeRoll_clamp), '{}.oldMaxX'.format(toeRoll_setRange))
+    mc.setAttr('{}.minX'.format(toeRoll_setRange), 0)
+    mc.setAttr('{}.maxX'.format(toeRoll_setRange), 1)
+    mc.connectAttr('{}.inputR'.format(toeRoll_clamp), '{}.valueX'.format(toeRoll_setRange))
+
+    # Multiply the remapped value (percentage of roll between our ball and toe angles) by Roll amount
+    mc.connectAttr('{}.outValueX'.format(toeRoll_setRange), '{}.input1X'.format(toeRoll_mult_percent))
+    mc.connectAttr('{}.inputR'.format(toeRoll_clamp), '{}.input2X'.format(toeRoll_mult_percent))
+    mc.setAttr('{}.operation'.format(toeRoll_mult_percent), 1)
+
+    if rollUpNegative:
+
+        # Negate the roll value
+        toeRoll_mult_negate = mc.shadingNode('multiplyDivide', asUtility=True,
+                                             n='{}_toeRoll_mult_negate'.format(prefix))
+
+        mc.connectAttr('{}.outputX'.format(toeRoll_mult_percent), '{}.input1X'.format(toeRoll_mult_negate))
+        mc.setAttr('{}.input2X'.format(toeRoll_mult_negate), -1)
+        mc.setAttr('{}.operation'.format(toeRoll_mult_negate), 1)
+
+        toeRollDriver = '{}.outputX'.format(toeRoll_mult_negate)
+
+
+
+    else:
+        toeRollDriver = '{}.outputX'.format(toeRoll_mult_percent)
+
+    # Feed the out value of our multiply node to toe_loc rotate axis
+    mc.connectAttr(toeRollDriver, '{}.{}'.format(toeEndCtr.Off, rollAxisAttr))
+
+    # Connect ball pivot
+    ballRoll_clamp = mc.shadingNode('clamp', asUtility=True,
+                                    n='{}_ballRoll_clamp'.format(prefix))
+
+    ballRoll_setRange = mc.shadingNode('setRange', asUtility=True,
+                                       n='{}_ballRoll_setRange'.format(prefix))
+
+    toeRoll_reverse = mc.shadingNode('reverse', asUtility=True,
+                                     n='{}_toeRoll_reverse'.format(prefix))
+
+    ballRoll_combine_percentages = mc.shadingNode('multiplyDivide', asUtility=True,
+                                                  n='{}_ballRoll_combine_percentages'.format(prefix))
+
+    ballRoll_mult_percent = mc.shadingNode('multiplyDivide', asUtility=True,
+                                           n='{}_ballRoll_mult_percent'.format(prefix))
+
+    # Roll value goes into our clamp input
+    mc.connectAttr('{}.{}'.format(footCtr.C, roll_attr), '{}.inputR'.format(ballRoll_clamp))
+    # Clamp minimum set to zero
+    mc.setAttr('{}.minR'.format(ballRoll_clamp), 0)
+    # Ball angle attr goes into our clamp maximum
+    mc.connectAttr('{}.{}'.format(footCtr.C, ball_angle_attr), '{}.maxR'.format(ballRoll_clamp))
+
+    # Remap our clamped values from zero to one
+    mc.connectAttr('{}.minR'.format(ballRoll_clamp), '{}.oldMinX'.format(ballRoll_setRange))
+    mc.connectAttr('{}.maxR'.format(ballRoll_clamp), '{}.oldMaxX'.format(ballRoll_setRange))
+    mc.setAttr('{}.minX'.format(ballRoll_setRange), 0)
+    mc.setAttr('{}.maxX'.format(ballRoll_setRange), 1)
+    mc.connectAttr('{}.inputR'.format(ballRoll_clamp), '{}.valueX'.format(ballRoll_setRange))
+
+    # Get the reciprocal of the toe range
+    mc.connectAttr('{}.outValueX'.format(toeRoll_setRange), '{}.inputX'.format(toeRoll_reverse))
+
+    # Multiply the range of the ball roll with the reciprocal range of the toe roll
+    mc.connectAttr('{}.outputX'.format(toeRoll_reverse), '{}.input1X'.format(ballRoll_combine_percentages))
+    mc.connectAttr('{}.outValueX'.format(ballRoll_setRange), '{}.input2X'.format(ballRoll_combine_percentages))
+    mc.setAttr('{}.operation'.format(ballRoll_combine_percentages), 1)
+
+    # Multiply the resulting percentage by the Roll amount
+    mc.connectAttr('{}.outputX'.format(ballRoll_combine_percentages), '{}.input1X'.format(ballRoll_mult_percent))
+    mc.connectAttr('{}.inputR'.format(ballRoll_clamp), '{}.input2X'.format(ballRoll_mult_percent))
+    mc.setAttr('{}.operation'.format(ballRoll_mult_percent), 1)
+
+    if rollUpNegative:
+
+        # Negate the roll value
+        ballRoll_mult_negate = mc.shadingNode('multiplyDivide', asUtility=True,
+                                              n='{}_ballRoll_mult_negate'.format(prefix))
+
+        mc.connectAttr('{}.outputX'.format(ballRoll_mult_percent), '{}.input1X'.format(ballRoll_mult_negate))
+        mc.setAttr('{}.input2X'.format(ballRoll_mult_negate), -1)
+        mc.setAttr('{}.operation'.format(ballRoll_mult_negate), 1)
+
+        ballRollDriver = '{}.outputX'.format(ballRoll_mult_negate)
+
+
+
+    else:
+        ballRollDriver = '{}.outputX'.format(ballRoll_mult_percent)
+
+    # Feed the out value of our multiply node to ballCtr rotation
+    mc.connectAttr(ballRollDriver, '{}.{}'.format(ballCtr.Off, rollAxisAttr))
+
+
+def footRock(
+            footCtr,
+            rockAxis,
+            outer,
+            inner
+            ):
+
+    # Set up rock
+    rock_attr = 'Rock'
+    mc.addAttr(footCtr.C, ln=rock_attr, at='double', dv=0, k=1)
+
+    if 'x' in rockAxis:
+        rockAxisAttr = 'rotateX'
+
+    elif 'y' in rockAxis:
+        rockAxisAttr = 'rotateY'
+
+    elif 'z' in rockAxis:
+        rockAxisAttr = 'rotateZ'
+
+    rotateOutNegative = False
+
+    if '-' in rockAxis:
+        rotateOutNegative = True
+
+    if rotateOutNegative:
+        rotateOuterDirection = -1
+        rotateInnerDirection = 1
+    else:
+        rotateOuterDirection = 1
+        rotateInnerDirection = -1
+
+    # Set up SDK to rock outer pivot
+    mc.setDrivenKeyframe('{}.{}'.format(outer, rockAxisAttr),
+                         currentDriver='{}.{}'.format(footCtr.C, rock_attr),
+                         driverValue=0,
+                         value=0,
+                         inTangentType='linear',
+                         outTangentType='linear')
+
+    mc.setDrivenKeyframe('{}.{}'.format(outer, rockAxisAttr),
+                         currentDriver='{}.{}'.format(footCtr.C, rock_attr),
+                         driverValue=90,
+                         value=90 * rotateOuterDirection,
+                         inTangentType='linear',
+                         outTangentType='linear')
+
+    # Set up SDK to rock inner pivot
+    mc.setDrivenKeyframe('{}.{}'.format(inner, rockAxisAttr),
+                         currentDriver='{}.{}'.format(footCtr.C, rock_attr),
+                         driverValue=0,
+                         value=0,
+                         inTangentType='linear',
+                         outTangentType='linear')
+
+    mc.setDrivenKeyframe('{}.{}'.format(inner, rockAxisAttr),
+                         currentDriver='{}.{}'.format(footCtr.C, rock_attr),
+                         driverValue=-90,
+                         value=90 * rotateInnerDirection,
+                         inTangentType='linear',
+                         outTangentType='linear')

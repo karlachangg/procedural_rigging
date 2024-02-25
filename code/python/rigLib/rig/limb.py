@@ -281,8 +281,8 @@ class Limb():
                                         rotateTo=ikJoints[1], offsets=['null', 'zero', 'auto'],
                                         scale=self.rigScale * 0.25, parent=self.rigmodule.controlsGrp, shape='locator')
 
-        wristGimbalCtr = control.Control(prefix='{}_hand_gimbal'.format(self.prefix), translateTo=ikJoints[2],
-                                         rotateTo=ikJoints[2],
+        wristGimbalCtr = control.Control(prefix='{}_hand_gimbal'.format(self.prefix), translateTo=ikJoints[-1],
+                                         rotateTo=ikJoints[1],
                                          scale=self.rigScale, lockChannels=['t', 's'], shape='circle')
 
         controls = [armCtr, poleVectorCtr, wristGimbalCtr]
@@ -410,8 +410,10 @@ class Limb():
 
         # Create PV constraint
         mc.poleVectorConstraint(poleVectorCtr.C, armIK)
+
         # Orient constraint joint to gimbal control
         mc.orientConstraint(wristGimbalCtr.C, ikJoints[2], mo=1)
+
         # parent gimbal control to ik control
         mc.parent(wristGimbalCtr.Off, armCtr.C)
 
@@ -501,7 +503,6 @@ class Limb():
             fAxisDirection = 1
 
         blenderStretchUpper = boneStretch(prefix='{}_bone1'.format(self.prefix),
-                                          boneOrigLength=upperArm_length,
                                           totalLimbLength=armLength,
                                           lengthAttr='{}.{}'.format(armCtr.C, length1_attr),
                                           stretchAttr=self.StretchyAttr,
@@ -510,7 +511,6 @@ class Limb():
                                           )
 
         blenderStretchLower = boneStretch(prefix='{}_bone2'.format(self.prefix),
-                                          boneOrigLength=lowerArm_length,
                                           totalLimbLength=armLength,
                                           lengthAttr='{}.{}'.format(armCtr.C, length2_attr),
                                           stretchAttr=self.StretchyAttr,
@@ -604,7 +604,6 @@ class Limb():
         mc.parent(upVector, wristPositionGrp)
 
         fkWristPositionGrp = mc.group(n='{}_fkWristResultGrp'.format(self.prefix), em=1)
-        #mc.parent(fkWristPositionGrp, self.rigmodule.partsGrp)
         mc.parent(fkWristPositionGrp, bodyAttachGrp)
         mc.delete(mc.parentConstraint(ikControl, fkWristPositionGrp, mo = 0))
 
@@ -667,7 +666,387 @@ class Limb():
         pass
 
     def buildIKDigitigrade(self):
-        pass
+
+        # duplicate arm joints to make IK joints
+        ikJoints = joint.duplicateChain(self.limbJoints, 'jnt', 'IK_jnt')
+        mc.parent(ikJoints[0], self.rigmodule.jointsGrp)
+
+        # Make controls
+        if self.ikCtrOrient == 'bone':
+            orientation = ikJoints[-1]
+
+        elif self.ikCtrOrient == 'world':
+            orientation = self.baseRig.global1Ctrl
+
+        armCtr = control.Control(prefix='{}_arm_ik'.format(self.prefix), translateTo=ikJoints[-1], rotateTo=orientation,
+                                 offsets=['null', 'zero', 'auto'],
+                                 scale=self.rigScale, parent=self.rigmodule.controlsGrp, shape='cube')
+
+        poleVectorCtr = control.Control(prefix='{}_arm_pv'.format(self.prefix), translateTo=ikJoints[1],
+                                        rotateTo=ikJoints[1], offsets=['null', 'zero', 'auto'],
+                                        scale=self.rigScale * 0.25, parent=self.rigmodule.controlsGrp, shape='locator')
+
+        wristGimbalCtr = control.Control(prefix='{}_hand_gimbal'.format(self.prefix), translateTo=ikJoints[-1],
+                                         rotateTo=ikJoints[-1],
+                                         scale=self.rigScale, lockChannels=['t', 's'], shape='circle')
+
+        # Create control at the ball of the foot
+        ballCtr = control.Control(prefix='{}_footRoll'.format(self.prefix), translateTo = ikJoints[-1],
+                                  scale=self.rigScale * 0.5, shape='circleX')
+
+        controls = [armCtr, poleVectorCtr, wristGimbalCtr, ballCtr]
+
+        self.rigParts['ikControl'] = armCtr
+        self.rigParts['ikGimbalControl'] = wristGimbalCtr
+
+        # Body attach group moves the base of the ik limb. Is used to attach to a scaupla rig or spine rig later
+        bodyAttachGrp = mc.group(n='{}_ikBodyAttachGrp'.format(self.prefix), em=1, p=self.rigmodule.partsGrp)
+        mc.delete(mc.parentConstraint(ikJoints[0], bodyAttachGrp, mo=0))
+
+        # First ik joint should follow shoulderAttachGrp
+        mc.pointConstraint(bodyAttachGrp, ikJoints[0], mo=1)
+
+        # ikEndGrp moves the IK handle and objects that are meant to be the "end" of the IK.
+        # In the plantigrabe limb, this follows the IK control, but here we'll go ahead and add it to the ball roll control
+        ikEndGrp = mc.group(n='{}_ikEndEffectors'.format(self.prefix), em=1)
+        mc.delete(mc.parentConstraint(ballCtr.C, ikEndGrp, mo=0))
+        mc.parent(ikEndGrp, ballCtr.C)
+
+        # Add followArmIK to rigParts dictionary bc we will need it in case of a reverse foot setup
+
+        self.rigParts['reverseFootDriven'] = ikEndGrp
+
+        # move pole vector ctr
+        units = 7 * self.rigScale
+
+        if 'x' in self.elbowDirection:
+            x, y, z = True, False, False
+
+        elif 'y' in self.elbowDirection:
+            x, y, z = False, True, False
+
+        elif 'z' in self.elbowDirection:
+            x, y, z = False, False, True
+
+        if '-' in self.elbowDirection:
+            units = units * -1
+
+        mc.move(units, poleVectorCtr.Off, x=x, y=y, z=z, os=1, r=1, wd=1)
+
+
+        # make IK handles
+        kneeIK = mc.ikHandle(n='{}_Knee_ikh'.format(self.prefix), sol='ikRPsolver', sj=ikJoints[0], ee=ikJoints[2])[0]
+        mc.hide(kneeIK)
+
+        ankleIK = mc.ikHandle(n='{}_Ankle_ikh'.format(self.prefix), sol='ikRPsolver', sj=ikJoints[2], ee=ikJoints[3])[0]
+        mc.hide(ankleIK)
+
+
+        # Parent ikhandle to follow End group
+        mc.parent(kneeIK, ikEndGrp)
+        mc.parent(ankleIK, ikEndGrp)
+
+
+        # Create leg Aim group
+        ikRotateAimGrp = mc.group(n='{}_ikRotate_Aim_Grp'.format(self.prefix), em=1)
+        mc.delete(mc.parentConstraint(ikEndGrp, ikRotateAimGrp, mo=0))
+        mc.parent(ikRotateAimGrp, self.rigmodule.partsGrp)
+        mc.aimConstraint(bodyAttachGrp, ikRotateAimGrp, aimVector=(1, 0, 0), upVector=(0, 0, 1),
+                         worldUpType = 'object', worldUpVector=(0, 0, 1), worldUpObject = poleVectorCtr.C, mo=0)[0]
+        mc.pointConstraint(armCtr.C, ikRotateAimGrp, mo = 1)
+
+        # Create leg No Aim group
+        ikRotateNoAimGrp = mc.group(n='{}_ikRotate_No_Aim_Grp'.format(self.prefix), em=1)
+        mc.delete(mc.parentConstraint(ikRotateAimGrp, ikRotateNoAimGrp, mo=0))
+        mc.parent(ikRotateNoAimGrp, self.rigmodule.partsGrp)
+        mc.pointConstraint(armCtr.C, ikRotateNoAimGrp, mo=1)
+        mc.orientConstraint(armCtr.C, ikRotateNoAimGrp, mo=1)
+
+        # Create leg rotate group above ikEndGrp
+        ikRotateGrp = mc.group(n='{}_ikRotate_Grp'.format(self.prefix), em=1)
+        mc.delete(mc.parentConstraint(ikRotateAimGrp, ikRotateGrp, mo=0))
+        mc.parent(ikRotateGrp, self.rigmodule.controlsGrp)
+        mc.pointConstraint(armCtr.C, ikRotateGrp, mo=1)
+
+        # Parent ballCtr to ikRotateGrp
+        mc.parent(ballCtr.Off, ikRotateGrp)
+
+
+        ikRotateGrp_oConstraint = mc.orientConstraint(ikRotateAimGrp, ikRotateNoAimGrp, ikRotateGrp, mo=1)[0]
+        weights = mc.orientConstraint(ikRotateGrp_oConstraint, q=1, weightAliasList=1)
+        mc.setAttr('{}.interpType'.format(ikRotateGrp_oConstraint), 2)
+
+        # Set up leg aim attribute
+        leg_aim_attr = 'Leg_Aim'
+        mc.addAttr(armCtr.C, ln = leg_aim_attr, at='double', min=0, max=1, dv=0, k=1)
+        mc.connectAttr('{}.{}'.format(armCtr.C, leg_aim_attr), '{}.{}'.format(ikRotateGrp_oConstraint, weights[0]))
+        reverse_LegAim = mc.shadingNode('reverse', asUtility=True, n='{}_legAim_reverse'.format(self.prefix))
+        mc.connectAttr('{}.{}'.format(armCtr.C, leg_aim_attr), '{}.inputX'.format(reverse_LegAim))
+        mc.connectAttr('{}.outputX'.format(reverse_LegAim), '{}.{}'.format(ikRotateGrp_oConstraint, weights[1]))
+        mc.setAttr('{}.{}'.format(armCtr.C, leg_aim_attr), 1.0)
+
+
+
+        # make pole vector connection line
+        pvLinePos1 = mc.xform(ikJoints[1], q=1, t=1, ws=1)
+        pvLinePos2 = mc.xform(poleVectorCtr.C, q=1, t=1, ws=1)
+        poleVectorCurve = mc.curve(n='{}_pv_curve'.format(self.prefix), d=1, p=[pvLinePos1, pvLinePos2])
+
+        mc.cluster('{}.cv[0]'.format(poleVectorCurve), n='{}_pv1_cls'.format(self.prefix),
+                   wn=[ikJoints[1], ikJoints[1]], bs=True)
+
+        mc.cluster('{}.cv[1]'.format(poleVectorCurve), n='{}_pv2_cls'.format(self.prefix),
+                   wn=[poleVectorCtr.C, poleVectorCtr.C], bs=True)
+
+        mc.parent(poleVectorCurve, self.rigmodule.controlsGrp)
+        mc.setAttr('{}.template'.format(poleVectorCurve), 1)
+        mc.setAttr('{}.it'.format(poleVectorCurve), 0)
+
+        # create PV no follow locator
+        pvNoFollow = mc.spaceLocator(n='{}_pv_noFollow'.format(self.prefix))
+        mc.parent(pvNoFollow, self.rigmodule.partsGrp)
+        mc.matchTransform(pvNoFollow, poleVectorCtr.C)
+
+        # create PV follow object and setup
+        poleAimLeg = mc.group(n='{}_poleAim'.format(self.prefix), em=1)
+        upVector = mc.group(n='{}_pv_upVec'.format(self.prefix), em=1)
+        mc.delete(mc.parentConstraint(armCtr.C, upVector, mo=0))
+        mc.parent(upVector, self.rigmodule.partsGrp)
+        #mc.parentConstraint(armCtr.C, upVector, sr='x', mo=1)
+        mc.parentConstraint(armCtr.C, upVector, mo=1)
+        mc.pointConstraint(ikJoints[0], poleAimLeg, mo=0)
+
+        # The pole aim axis will depend on the orientation of the foot control.. it should be the axis pointing out,
+        # not in the direction of the IK bend. But it will change if we orient the end ctr to the bone or to world
+        # TO DO: set up pole axis, and aim constraint up and aim vectors in a smarter way. Its hard coded right now
+
+        poleAimAxis = 'y'
+
+        poleAimConstraint = mc.aimConstraint(armCtr.C, poleAimLeg, aimVector= (0, 1, 0), upVector=(1, 0, 0),
+                                             worldUpType='objectRotation', worldUpVector=(1, 0, 0),
+                                             worldUpObject=upVector, mo=0)[0]
+
+        poleOffsetFollow_noScale = mc.group(n='{}_poleOffsetFollow_noScale'.format(self.prefix), em=1)
+        mc.pointConstraint(poleAimLeg, poleOffsetFollow_noScale, mo=0)
+        mc.orientConstraint(poleAimLeg, poleOffsetFollow_noScale, mo=0)
+        pvFollow = mc.group(n='{}_poleOffsetFollow'.format(self.prefix), em=1)
+        mc.delete(mc.parentConstraint(poleVectorCtr.C, pvFollow, mo=0))
+        mc.parentConstraint(poleOffsetFollow_noScale, pvFollow, mo=1)
+        mc.parent(poleAimLeg, self.rigmodule.partsGrp)
+        mc.parent(poleOffsetFollow_noScale, self.rigmodule.partsGrp)
+        mc.parent(pvFollow, self.rigmodule.partsGrp)
+
+        # constrain pv
+        pv_constraint = mc.parentConstraint(pvFollow, pvNoFollow, poleVectorCtr.Offsets[0], mo=1)[0]
+        weights = mc.parentConstraint(pv_constraint, q=1, weightAliasList=1)
+        mc.setAttr('{}.interpType'.format(pv_constraint), 2)
+
+        # setup pv follow switch
+        pv_follow_attr = 'Follow'
+        mc.addAttr(poleVectorCtr.C, ln=pv_follow_attr, at='double', min=0, max=1, dv=0, k=1)
+        mc.connectAttr('{}.{}'.format(poleVectorCtr.C, pv_follow_attr), '{}.{}'.format(pv_constraint, weights[0]))
+        reverse = mc.shadingNode('reverse', asUtility=True, n='{}_pvFollow_reverse'.format(self.prefix))
+        mc.connectAttr('{}.{}'.format(poleVectorCtr.C, pv_follow_attr), '{}.inputX'.format(reverse))
+        mc.connectAttr('{}.outputX'.format(reverse), '{}.{}'.format(pv_constraint, weights[1]))
+        mc.parent(pv_constraint, self.rigmodule.noXformGrp)
+        mc.setAttr('{}.{}'.format(poleVectorCtr.C, pv_follow_attr), 1)
+
+        # Add spin attribute
+
+        spin_attr = 'Spin'
+        mc.addAttr(armCtr.C, ln=spin_attr, at='double', dv=0, k=1)
+
+        self.elbowSpinAxis = self.forwardAxis
+
+        if 'x' in poleAimAxis:
+            spinAxisAttr = 'offsetX'
+        elif 'y' in poleAimAxis:
+            spinAxisAttr = 'offsetY'
+        elif 'z' in poleAimAxis:
+            spinAxisAttr = 'offsetZ'
+
+        mc.connectAttr('{}.{}'.format(armCtr.C, spin_attr), '{}.{}'.format(poleAimConstraint, spinAxisAttr))
+
+        # Create PV constraint
+        mc.poleVectorConstraint(poleVectorCtr.C, kneeIK)
+
+        # Orient constraint joint to gimbal control
+        mc.orientConstraint(wristGimbalCtr.C, ikJoints[-1], mo=1)
+        # parent gimbal control to ik control
+        mc.parent(wristGimbalCtr.Off, armCtr.C)
+
+        # make stretchy arm
+
+        # Create locator to follow shoulder
+        shoulderLoc = mc.group(n='{}_IKShoulderLoc'.format(self.prefix), em=1)
+        mc.parent(shoulderLoc, bodyAttachGrp)
+        mc.delete(mc.parentConstraint(ikJoints[0], shoulderLoc, mo=0))
+
+        # Create group to follow hand IK control
+        followFoot = mc.group(n='{}_IKFootFollow'.format(self.prefix), em=1)
+        mc.delete(mc.parentConstraint(armCtr.C, followFoot, mo=0))
+        # create empty group under ik arm ctr
+        followArmIK = mc.group(n='{}_IKArmMeasure'.format(self.prefix), em=1)
+        mc.delete(mc.parentConstraint(armCtr.C, followArmIK, mo=0))
+        mc.parent(followArmIK, ikEndGrp)
+        # parent constrain wrist group to group under ik end grp
+        mc.parentConstraint(followArmIK, followFoot, mo=0)
+        mc.parent(followFoot, self.rigmodule.partsGrp)
+
+        # Create group to follow ankle bone position
+        followAnkle =  mc.group(n='{}_IKAnkleFollow'.format(self.prefix), em=1)
+        mc.delete(mc.parentConstraint(ikJoints[2], followAnkle, mo=0))
+        # create empty group under ik arm ctr
+        followAnkleIK = mc.group(n='{}_IKAnkleMeasure'.format(self.prefix), em=1)
+        mc.delete(mc.parentConstraint(ikJoints[2], followAnkleIK, mo=0))
+        mc.parent(followAnkleIK, ikEndGrp)
+        # parent constrain ankle group to group under ik end grp
+        mc.parentConstraint(followAnkleIK, followAnkle, mo=0)
+        mc.parent(followAnkle, self.rigmodule.partsGrp)
+
+
+        # create a distance node to get the length between the two groups
+        arm_dist = mc.shadingNode('distanceBetween', asUtility=True, n='{}_arm_length'.format(self.prefix))
+        # connect distance node to pv ctr world matrix and group positioned at wrist
+        mc.connectAttr('{}.worldMatrix'.format(shoulderLoc), '{}.inMatrix1'.format(arm_dist))
+        mc.connectAttr('{}.worldMatrix'.format(followAnkle), '{}.inMatrix2'.format(arm_dist))
+
+        # divide arm length by global scale
+        arm_dist_global = mc.shadingNode('multiplyDivide', asUtility=True,
+                                         n='{}_arm_distance_global'.format(self.prefix))
+        mc.setAttr('{}.operation'.format(arm_dist_global), 2)
+        mc.connectAttr('{}.distance'.format(arm_dist), '{}.input1X'.format(arm_dist_global))
+        mc.connectAttr('{}.sx'.format(self.baseRig.global1Ctrl.C), '{}.input2X'.format(arm_dist_global))
+
+        # Negate leg distance value for right side
+        if '-' in self.forwardAxis:
+            arm_dist_negative = mc.shadingNode('multiplyDivide', asUtility=True,
+                                               n='{}_arm_distance_negative'.format(self.prefix))
+            mc.setAttr('{}.operation'.format(arm_dist_negative), 1)
+            mc.connectAttr('{}.outputX'.format(arm_dist_global), '{}.input1X'.format(arm_dist_negative))
+            mc.setAttr('{}.input2X'.format(arm_dist_negative), -1)
+            sdkDriver = '{}.outputX'.format(arm_dist_negative)
+
+        else:
+            sdkDriver = '{}.outputX'.format(arm_dist_global)
+
+        # Get the original length of the upper and lower arm joints
+
+        if 'x' in self.forwardAxis:
+            lengthAxisAttr = 'tx'
+            scaleAxisAttr = 'sx'
+        elif 'y' in self.forwardAxis:
+            lengthAxisAttr = 'ty'
+            scaleAxisAttr = 'sy'
+        elif 'z' in self.forwardAxis:
+            lengthAxisAttr = 'tz'
+            scaleAxisAttr = 'sz'
+
+        upperBone_length = mc.getAttr('{}.{}'.format(ikJoints[1], lengthAxisAttr))
+        middleBone_length = mc.getAttr('{}.{}'.format(ikJoints[2], lengthAxisAttr))
+        lowerBone_length = mc.getAttr('{}.{}'.format(ikJoints[3], lengthAxisAttr))
+
+        # Calculate the length of fully extended arm
+        limbLength = upperBone_length + middleBone_length
+
+        # Create blender for stretchy arm setup
+        stretch_attr = 'Stretchy'
+        mc.addAttr(armCtr.C, ln=stretch_attr, at='double', min=0, max=1, dv=0, k=1)
+
+        # Create class member so we can access later
+        self.StretchyAttr = '{}.{}'.format(armCtr.C, stretch_attr)
+
+        # Make length attributes
+        length1_attr = 'Length1'
+        length2_attr = 'Length2'
+        length3_attr = 'Length3'
+
+        mc.addAttr(armCtr.C, ln=length1_attr, at='double', min=1, dv=1, k=1)
+        mc.addAttr(armCtr.C, ln=length2_attr, at='double', min=1, dv=1, k=1)
+        mc.addAttr(armCtr.C, ln=length3_attr, at='double', min=1, dv=1, k=1)
+
+        if '-' in self.forwardAxis:
+            fAxisDirection = 0
+        else:
+            fAxisDirection = 1
+
+        blenderStretchUpper = boneStretch(prefix='{}_bone1'.format(self.prefix),
+                                          totalLimbLength = limbLength,
+                                          lengthAttr = '{}.{}'.format(armCtr.C, length1_attr),
+                                          stretchAttr = self.StretchyAttr,
+                                          stretchDriver = sdkDriver,
+                                          forwardAxisPositive = fAxisDirection
+                                          )
+
+        blenderStretchMiddle = boneStretch(prefix = '{}_bone2'.format(self.prefix),
+                                          totalLimbLength = limbLength,
+                                          lengthAttr = '{}.{}'.format(armCtr.C, length2_attr),
+                                          stretchAttr = self.StretchyAttr,
+                                          stretchDriver = sdkDriver,
+                                          forwardAxisPositive = fAxisDirection
+                                          )
+        '''
+        blenderStretchLower = boneStretch(prefix='{}_bone3'.format(self.prefix),
+                                           totalLimbLength=limbLength,
+                                           lengthAttr = '{}.{}'.format(armCtr.C, length3_attr),
+                                           stretchAttr=self.StretchyAttr,
+                                           stretchDriver=sdkDriver,
+                                           forwardAxisPositive=fAxisDirection
+                                           )'''
+
+        # make elbow pin to pv setup
+        pv_pin_attr = 'Pin'
+        mc.addAttr(poleVectorCtr.C, ln=pv_pin_attr, at='double', min=0, max=1, dv=0, k=1)
+
+
+
+        blenderPinUpper = poleVectorPin(prefix = '{}_bone1'.format(self.prefix),
+                                        pinAttr = '{}.{}'.format(poleVectorCtr.C, pv_pin_attr),
+                                        pvCtrl = poleVectorCtr.C,
+                                        boneLocator = shoulderLoc,
+                                        boneOrigLength = upperBone_length,
+                                        globalCtrl='{}.scaleX'.format(self.baseRig.global1Ctrl.C),
+                                        forwardAxisPositive = fAxisDirection
+                                        )
+
+        blenderPinMiddle = poleVectorPin(prefix = '{}_bone2'.format(self.prefix),
+                                        pinAttr = '{}.{}'.format(poleVectorCtr.C, pv_pin_attr),
+                                        pvCtrl = poleVectorCtr.C,
+                                        boneLocator = followAnkle,
+                                        boneOrigLength = middleBone_length,
+                                        globalCtrl='{}.scaleX'.format(self.baseRig.global1Ctrl.C),
+                                        forwardAxisPositive=fAxisDirection
+                                        )
+
+        # Make a pin/no pin blender for the last bone that just has a value of 1
+
+        '''blenderPinLower = mc.shadingNode('blendTwoAttr', asUtility=True, n='{}_bone3_blenderPin'.format(self.prefix))
+        mc.connectAttr('{}.{}'.format(poleVectorCtr.C, pv_pin_attr), '{}.attributesBlender'.format(blenderPinLower))
+        mc.setAttr('{}.input[1]'.format(blenderPinLower), 1.0)'''
+
+
+        # connect stretch/no stretch blender output to pin/noPin blender input
+        mc.connectAttr('{}.output'.format(blenderStretchUpper), '{}.input[0]'.format(blenderPinUpper))
+        mc.connectAttr('{}.output'.format(blenderStretchMiddle), '{}.input[0]'.format(blenderPinMiddle))
+        #mc.connectAttr('{}.output'.format(blenderStretchLower), '{}.input[0]'.format(blenderPinLower))
+
+        # connect blender outputs to ik joints' scale
+        mc.connectAttr('{}.output'.format(blenderPinUpper), '{}.{}'.format(ikJoints[0], scaleAxisAttr))
+        mc.connectAttr('{}.output'.format(blenderPinMiddle), '{}.{}'.format(ikJoints[1], scaleAxisAttr))
+        #mc.connectAttr('{}.output'.format(blenderPinLower), '{}.{}'.format(ikJoints[2], scaleAxisAttr))
+
+
+
+        mc.setAttr('{}.{}'.format(armCtr.C, stretch_attr), 1)
+        mc.setAttr('{}.{}'.format(poleVectorCtr.C, pv_pin_attr), 0)
+
+        return {'joints': ikJoints, 'controls': controls, 'poleVecLine': poleVectorCurve,
+                'bodyAttachGrp': bodyAttachGrp}
+
+
+
+
+
     def buildIKUnguligrade(self):
         pass
 
@@ -680,11 +1059,10 @@ class Limb():
         mc.setAttr(self.StretchyAttr, Stretchy)
 
 
-def boneStretch( prefix, boneOrigLength, totalLimbLength, lengthAttr, stretchAttr, stretchDriver, forwardAxisPositive):
+def boneStretch( prefix, totalLimbLength, lengthAttr, stretchAttr, stretchDriver, forwardAxisPositive):
     '''
 
     :param prefix: prefix to name nodes created
-    :param boneOrigLength: original length of bone (no stretch amount)
     :param totalLimbLength: sum of bone lengths making up the limb
     :param lengthAttr: attribute to increase bone length manually
     :param stretchBlender: attribute to blend between stretch and non-stretch bone length
@@ -698,6 +1076,9 @@ def boneStretch( prefix, boneOrigLength, totalLimbLength, lengthAttr, stretchAtt
     blenderStretch = mc.shadingNode('blendTwoAttr', asUtility=True,
                                             n='{}_blender_stretch'.format(prefix))
     mc.connectAttr(stretchAttr, '{}.attributesBlender'.format(blenderStretch))
+
+    # Set blender input 0 to 1 in case we don't feed something into it later
+    mc.setAttr('{}.input[0]'.format(blenderStretch), 1.0)
 
     # Multiply stretch amount by length multiplier
     length_stretch_mult = mc.shadingNode('multiplyDivide', asUtility=True, n='{}_length_mult'.format(prefix))
@@ -739,6 +1120,8 @@ def boneStretch( prefix, boneOrigLength, totalLimbLength, lengthAttr, stretchAtt
 
     else:
         mc.setAttr('{}.preInfinity'.format(animCurve), 1)
+
+
 
     return blenderStretch
 
