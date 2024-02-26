@@ -110,7 +110,6 @@ class Dog(char.Character):
             forwardAxis= '-x',
             moveSwitchCtr='x',
             ikCtrOrient='world',
-            toeEndJoint = toeEndJnt,
             rigScale=self.sceneScale,
             baseRig=baseRig
         )
@@ -133,7 +132,6 @@ class Dog(char.Character):
             forwardAxis='x',
             moveSwitchCtr='-x',
             ikCtrOrient='world',
-            toeEndJoint = toeEndJnt,
             rigScale=self.sceneScale,
             baseRig=baseRig
         )
@@ -165,7 +163,6 @@ class Dog(char.Character):
             forwardAxis='-x',
             moveSwitchCtr = 'x',
             ikCtrOrient = 'world',
-            toeEndoint = backToeEndJnt,
             rigScale=self.sceneScale,
             baseRig=baseRig
         )
@@ -191,7 +188,6 @@ class Dog(char.Character):
             forwardAxis = 'x',
             moveSwitchCtr='-x',
             ikCtrOrient='world',
-            toeEndoint = backToeEndJnt,
             rigScale = self.sceneScale,
             baseRig=baseRig
         )
@@ -206,7 +202,7 @@ class Dog(char.Character):
                         Stretchy = 1,
                         )
 
-        '''
+
         # left front foot
         toeJoints = ['fingers_1_jnt', 'fingers_2_jnt']
         heelLoc = 'frontFoot_heel'
@@ -219,53 +215,54 @@ class Dog(char.Character):
             innerLoc = innerLoc,
             outerLoc = outerLoc,
 
-            fkAnkleJoint=self.leftArmRig.rigParts['fkJoints'][-1],
-            ikAnkleJoint=self.leftArmRig.rigParts['ikJoints'][-1],
-            fkFootCtr=self.leftArmRig.rigParts['fkControls'][-1],
+            ikParentJoint = self.leftArmRig.rigParts['ikJoints'][-1],
 
-            ikFootCtr=self.leftArmRig.rigParts['ikControl'],
-            ikParentCtr=self.leftArmRig.rigParts['ikGimbalControl'],
-            switchAttr=self.leftArmRig.rigParts['FKIKSwitchAttr'],
+            ikFootCtr = self.leftArmRig.rigParts['ikControl'],
 
-            ikGroupToDrive = self.leftArmRig.rigParts['reverseFootDriven'],
+            legType = 'digi',
 
-            prefix = 'frontFoot',
-            side = 'l',
+            ballCtr = self.leftArmRig.rigParts['ikControls'][-1],
+            toeIKCtr = self.leftArmRig.rigParts['ikControls'][2],
+            ankleRollDriver = self.leftArmRig.rigParts['ankleRollGrp'],
 
-            rollAxis = 'x',
-            rockAxis = '-z',
-            rigScale = self.sceneScale,
-            baseRig = baseRig
+            rollAxis='x',
+            rockAxis ='-z',
+            prefix='frontFoot',
+            side='l',
+            rigScale= self.sceneScale,
+            baseRig= baseRig
+
         )
 
         self.leftFrontFootRig.build()
 
+
+
         # right front foot
 
         self.rightFrontFootRig = foot.Foot(
-            toeJoints = toeJoints,
+
+            toeJoints=toeJoints,
             heelLoc=heelLoc,
             innerLoc=innerLoc,
             outerLoc=outerLoc,
 
-            fkAnkleJoint=self.rightArmRig.rigParts['fkJoints'][-1],
-            ikAnkleJoint=self.rightArmRig.rigParts['ikJoints'][-1],
-            fkFootCtr=self.rightArmRig.rigParts['fkControls'][-1],
+            ikParentJoint=self.rightArmRig.rigParts['ikJoints'][-1],
 
             ikFootCtr=self.rightArmRig.rigParts['ikControl'],
-            ikParentCtr=self.rightArmRig.rigParts['ikGimbalControl'],
-            switchAttr=self.rightArmRig.rigParts['FKIKSwitchAttr'],
 
+            legType='digi',
 
-            ikGroupToDrive=self.rightArmRig.rigParts['reverseFootDriven'],
+            ballCtr=self.rightArmRig.rigParts['ikControls'][-1],
+            toeIKCtr=self.rightArmRig.rigParts['ikControls'][2],
+            ankleRollDriver=self.rightArmRig.rigParts['ankleRollGrp'],
 
-            prefix='frontFoot',
-            side='r',
-
-            rollAxis='x',
-            rockAxis='z',
-            rigScale=self.sceneScale,
-            baseRig=baseRig
+            rollAxis = 'x',
+            rockAxis = 'z',
+            prefix = 'frontFoot',
+            side = 'r',
+            rigScale = self.sceneScale,
+            baseRig = baseRig
         )
 
         self.rightFrontFootRig.build()
@@ -284,21 +281,20 @@ class Dog(char.Character):
             innerLoc = backInnerLoc,
             outerLoc = backOuterLoc,
 
-            fkAnkleJoint=self.leftLegRig.rigParts['fkJoints'][-1],
-            ikAnkleJoint=self.leftLegRig.rigParts['ikJoints'][-1],
-            fkFootCtr=self.leftLegRig.rigParts['fkControls'][-1],
+            ikParentJoint=self.leftLegRig.rigParts['ikJoints'][-1],
 
             ikFootCtr=self.leftLegRig.rigParts['ikControl'],
-            ikParentCtr=self.leftLegRig.rigParts['ikGimbalControl'],
-            switchAttr=self.leftLegRig.rigParts['FKIKSwitchAttr'],
 
-            ikGroupToDrive=self.leftLegRig.rigParts['reverseFootDriven'],
+            legType='digi',
 
+            ballCtr=self.leftLegRig.rigParts['ikControls'][-1],
+            toeIKCtr=self.leftLegRig.rigParts['ikControls'][2],
+            ankleRollDriver=self.leftLegRig.rigParts['ankleRollGrp'],
 
+            rollAxis='x',
+            rockAxis = '-z',
             prefix='backFoot',
             side='l',
-            rollAxis='x',
-            rockAxis='-z',
             rigScale=self.sceneScale,
             baseRig=baseRig
         )
@@ -313,26 +309,26 @@ class Dog(char.Character):
             innerLoc = backInnerLoc,
             outerLoc = backOuterLoc,
 
-            fkAnkleJoint=self.rightLegRig.rigParts['fkJoints'][-1],
-            ikAnkleJoint=self.rightLegRig.rigParts['ikJoints'][-1],
-            fkFootCtr=self.rightLegRig.rigParts['fkControls'][-1],
+            ikParentJoint=self.rightLegRig.rigParts['ikJoints'][-1],
 
             ikFootCtr=self.rightLegRig.rigParts['ikControl'],
-            ikParentCtr=self.rightLegRig.rigParts['ikGimbalControl'],
-            switchAttr=self.rightLegRig.rigParts['FKIKSwitchAttr'],
 
-            ikGroupToDrive = self.rightLegRig.rigParts['reverseFootDriven'],
+            legType='digi',
+
+            ballCtr=self.rightLegRig.rigParts['ikControls'][-1],
+            toeIKCtr=self.rightLegRig.rigParts['ikControls'][2],
+            ankleRollDriver=self.rightLegRig.rigParts['ankleRollGrp'],
+
+            rollAxis ='x',
+            rockAxis = 'z',
             prefix = 'backFoot',
             side = 'r',
-            rollAxis = 'x',
-            rockAxis = 'z',
-            rigScale = self.sceneScale,
-            baseRig = baseRig
+            rigScale=self.sceneScale,
+            baseRig=baseRig
         )
 
         self.rightBackFootRig.build()
 
-        '''
 
 
 

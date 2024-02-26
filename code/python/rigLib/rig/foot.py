@@ -10,20 +10,27 @@ from ..utils import joint
 class Foot():
 
     def __init__(self,
+
             toeJoints,
             heelLoc,
             innerLoc,
             outerLoc,
 
-            fkAnkleJoint,
-            ikAnkleJoint,
+            fkParentJoint = '',
+            ikParentJoint = '',
 
-            fkFootCtr,
-            ikFootCtr,
-            ikParentCtr,
+            fkFootCtr = '',
+            ikFootCtr = '',
+            reverseFootParent = '',
 
-            ikGroupToDrive,
-            switchAttr,
+            ikGroupToDrive = '',
+            switchAttr = '',
+
+            legType = 'planti',
+
+            ballCtr = '',
+            toeIKCtr = '',
+            ankleRollDriver = '',
 
             rollAxis = 'x',
             rockAxis = 'z',
@@ -40,12 +47,12 @@ class Foot():
         :param innerLoc: str, locator at the inner rocking pivot
         :param outerLoc: str, locator at the outer rocking pivot
 
-        :param fkAnkleJoint: str, name of fk joint to parent the fk toe joint to
-        :param ikAnkleJoint: str, name of ik joint to parent the ik toe joint to
+        :param fkParentJointJoint: str, name of fk joint to parent the fk toe joint to
+        :param ikParentJointJoint: str, name of ik joint to parent the ik toe joint to
 
         :param fkFootCtr: control object, control on which to parent the fk toe control
         :param ikFootCtr: control object, Limb ik control on which to add the rock and roll attributes
-        :param ikParentCtr: control object, Control to parent the reverse foot controls to
+        :param reverseFootParent: str, Control to parent the reverse foot controls to
         :param ikGroupToDrive: str, Group of ik limb items which should move with the reverse foot roll
         :param switchAttr: str, "object.attr" name of fk to ik switcher
 
@@ -69,14 +76,20 @@ class Foot():
         self.innerLoc = side + '_' + innerLoc
         self.outerLoc = side + '_' + outerLoc
 
-        self.fkAnkleJoint = fkAnkleJoint
-        self.ikAnkleJoint = ikAnkleJoint
+        self.fkParentJoint = fkParentJoint
+        self.ikParentJoint = ikParentJoint
 
         self.fkFootCtr = fkFootCtr
         self.ikFootCtr = ikFootCtr
-        self.ikParentCtr = ikParentCtr
+        self.reverseFootParent = reverseFootParent
         self.ikGroupToDrive = ikGroupToDrive
         self.switchAttr = switchAttr
+
+        self.legType = legType
+
+        self.ballCtr = ballCtr
+        self.toeIKCtr = toeIKCtr
+        self.ankleRollDriver = ankleRollDriver
 
         self.rollAxis = rollAxis
         self.rockAxis = rockAxis
@@ -92,61 +105,71 @@ class Foot():
 
     def build(self):
 
-        # Build FK toe
-        fkRig = self.buildFK()
+        if self.legType == 'planti':
 
-        # Build IK rig
-        ikRig = self.buildReverseFoot()
+            # Build FK toe
+            fkRig = self.buildFK()
 
-        self.rigParts['fkControls'] = fkRig['controls']
-        self.rigParts['ikControls'] = ikRig['controls']
+            # Build IK rig
+            ikRig = self.buildReverseFoot()
 
-        # Connect deformation joints to fk and ik joints
+            self.rigParts['fkControls'] = fkRig['controls']
+            self.rigParts['ikControls'] = ikRig['controls']
 
-        orientConstraints = []
+            # Connect deformation joints to fk and ik joints
 
-        for i in range(len(self.toeJoints)):
-            oConstraint = mc.orientConstraint(fkRig['joints'][i], ikRig['joints'][i], self.toeJoints[i], mo=0)[0]
-            mc.setAttr('{}.interpType'.format(oConstraint), 2)
-            orientConstraints.append(oConstraint)
+            orientConstraints = []
 
-        # make reverse node
-        reverse = mc.shadingNode('reverse', asUtility=True, n='{}_switch_reverse'.format(self.prefix))
-        mc.connectAttr(self.switchAttr, '{}.inputX'.format(reverse))
+            for i in range(len(self.toeJoints)):
+                oConstraint = mc.orientConstraint(fkRig['joints'][i], ikRig['joints'][i], self.toeJoints[i], mo=0)[0]
+                mc.setAttr('{}.interpType'.format(oConstraint), 2)
+                orientConstraints.append(oConstraint)
 
-        for constraint in orientConstraints:
-            weights = mc.orientConstraint(constraint, q=1, weightAliasList=1)
-            mc.connectAttr(self.switchAttr, '{}.{}'.format(constraint, weights[1]))
-            mc.connectAttr('{}.outputX'.format(reverse), '{}.{}'.format(constraint, weights[0]))
+            # make reverse node
+            reverse = mc.shadingNode('reverse', asUtility=True, n='{}_switch_reverse'.format(self.prefix))
+            mc.connectAttr(self.switchAttr, '{}.inputX'.format(reverse))
 
-        # Setup blend between joint scales
+            for constraint in orientConstraints:
+                weights = mc.orientConstraint(constraint, q=1, weightAliasList=1)
+                mc.connectAttr(self.switchAttr, '{}.{}'.format(constraint, weights[1]))
+                mc.connectAttr('{}.outputX'.format(reverse), '{}.{}'.format(constraint, weights[0]))
 
-        for i in range(len(self.toeJoints)):
-            blendNode = mc.shadingNode('blendColors', asUtility=True,
-                                       n='{}_jointScale_blend{}'.format(self.prefix, i))
-            mc.connectAttr(self.switchAttr, '{}.blender'.format(blendNode))
+            # Setup blend between joint scales
 
-            mc.connectAttr('{}.sx'.format(ikRig['joints'][i]), '{}.color1.color1R'.format(blendNode))
-            mc.connectAttr('{}.sy'.format(ikRig['joints'][i]), '{}.color1.color1G'.format(blendNode))
-            mc.connectAttr('{}.sz'.format(ikRig['joints'][i]), '{}.color1.color1B'.format(blendNode))
+            for i in range(len(self.toeJoints)):
+                blendNode = mc.shadingNode('blendColors', asUtility=True,
+                                           n='{}_jointScale_blend{}'.format(self.prefix, i))
+                mc.connectAttr(self.switchAttr, '{}.blender'.format(blendNode))
 
-            mc.connectAttr('{}.sx'.format(fkRig['joints'][i]), '{}.color2.color2R'.format(blendNode))
-            mc.connectAttr('{}.sy'.format(fkRig['joints'][i]), '{}.color2.color2G'.format(blendNode))
-            mc.connectAttr('{}.sz'.format(fkRig['joints'][i]), '{}.color2.color2B'.format(blendNode))
+                mc.connectAttr('{}.sx'.format(ikRig['joints'][i]), '{}.color1.color1R'.format(blendNode))
+                mc.connectAttr('{}.sy'.format(ikRig['joints'][i]), '{}.color1.color1G'.format(blendNode))
+                mc.connectAttr('{}.sz'.format(ikRig['joints'][i]), '{}.color1.color1B'.format(blendNode))
 
-            mc.connectAttr('{}.outputR'.format(blendNode), '{}.sx'.format(self.toeJoints[i]))
-            mc.connectAttr('{}.outputG'.format(blendNode), '{}.sy'.format(self.toeJoints[i]))
-            mc.connectAttr('{}.outputB'.format(blendNode), '{}.sz'.format(self.toeJoints[i]))
+                mc.connectAttr('{}.sx'.format(fkRig['joints'][i]), '{}.color2.color2R'.format(blendNode))
+                mc.connectAttr('{}.sy'.format(fkRig['joints'][i]), '{}.color2.color2G'.format(blendNode))
+                mc.connectAttr('{}.sz'.format(fkRig['joints'][i]), '{}.color2.color2B'.format(blendNode))
+
+                mc.connectAttr('{}.outputR'.format(blendNode), '{}.sx'.format(self.toeJoints[i]))
+                mc.connectAttr('{}.outputG'.format(blendNode), '{}.sy'.format(self.toeJoints[i]))
+                mc.connectAttr('{}.outputB'.format(blendNode), '{}.sz'.format(self.toeJoints[i]))
 
 
-        for ctrl in fkRig['controls']:
-            mc.connectAttr('{}.outputX'.format(reverse), '{}.v'.format(ctrl.Off))
-        for ctrl in ikRig['controls']:
-            mc.connectAttr(self.switchAttr, '{}.v'.format(ctrl.Off))
+            for ctrl in fkRig['controls']:
+                mc.connectAttr('{}.outputX'.format(reverse), '{}.v'.format(ctrl.Off))
+            for ctrl in ikRig['controls']:
+                mc.connectAttr(self.switchAttr, '{}.v'.format(ctrl.Off))
 
-        # organize
-        orientconstraintGrp = mc.group(orientConstraints, n='defSkeleton_{}_oconstraints'.format(self.prefix))
-        mc.parent(orientconstraintGrp, self.baseRig.noXformGrp)
+            # organize
+            orientconstraintGrp = mc.group(orientConstraints, n='defSkeleton_{}_oconstraints'.format(self.prefix))
+            mc.parent(orientconstraintGrp, self.baseRig.noXformGrp)
+
+        elif self.legType == 'digi' or self.legType == 'ungu':
+
+            # No need to make any FK controls because the limb module already makes it
+
+            # The reverse foot setup just needs to add heel and toeEnd controls, and foot roll and rock functionality
+            self.buildDigitigradeFoot()
+
 
 
 
@@ -156,7 +179,7 @@ class Foot():
 
         # duplicate toe joints to make FK joints
         fkJoints = joint.duplicateChain(self.toeJoints, 'jnt', 'FK_jnt')
-        mc.parent(fkJoints[0], self.fkAnkleJoint)
+        mc.parent(fkJoints[0], self.fkParentJoint)
 
         # make controls
 
@@ -180,16 +203,16 @@ class Foot():
 
         # duplicate toe joints to make IK joints
         ikJoints = joint.duplicateChain(self.toeJoints, 'jnt', 'IK_jnt')
-        mc.parent(ikJoints[0], self.ikAnkleJoint)
+        mc.parent(ikJoints[0], self.ikParentJoint)
 
-        footJoints = [self.ikAnkleJoint]
+        footJoints = [self.ikParentJoint]
         footJoints.extend(ikJoints)
 
 
 
         # Create control at the ball of the foot
         ballCtr = control.Control(prefix='{}_footRoll'.format(self.prefix), translateTo = footJoints[1],
-                                  scale=self.rigScale * 0.5, shape='circleX')
+                                  scale=self.rigScale * 0.5, shape='circleX', offsets=['null', 'zero', 'auto'])
 
         # Create control at the end of the foot (toe)
 
@@ -197,7 +220,7 @@ class Foot():
                                     scale=self.rigScale * 0.25, shape='circleX')
 
         toeCtr = control.Control(prefix='{}_toe'.format(self.prefix), translateTo =footJoints[1],
-                                 rotateTo= footJoints[1], scale=self.rigScale * 0.5, shape='circleX')
+                                 rotateTo= footJoints[1], scale=self.rigScale * 0.5, shape='circleX', offsets=['null', 'zero', 'auto'])
 
         # Create control at the heel of the foot
 
@@ -248,9 +271,9 @@ class Foot():
 
         # Create a group to hold our feet controls and pivots
         footRigGrp = mc.group( n = '{}_feetRigGrp'.format(self.prefix), em = 1)
-        mc.delete(mc.pointConstraint(self.ikParentCtr.C, footRigGrp))
+        mc.delete(mc.pointConstraint(self.reverseFootParent, footRigGrp))
         mc.parent(innerPivot_Grp, footRigGrp)
-        mc.parent(footRigGrp, self.ikParentCtr.C)
+        mc.parent(footRigGrp, self.reverseFootParent)
 
 
 
@@ -294,6 +317,106 @@ class Foot():
         # Set some class properties we can call later
 
         return {'joints': ikJoints, 'controls': controls}
+
+
+    def buildDigitigradeFoot(self):
+
+
+        # Duplicate toe end joint
+
+        toeEndIKJoint = joint.duplicateChain(self.toeJoints[-1], 'jnt', 'IK_jnt')[0]
+        mc.parent(toeEndIKJoint, self.ikParentJoint)
+
+        #footJoints = [self.ikParentJoint]
+        #footJoints.extend(ikJoints)
+
+
+        # Create toeEnd CTR and heel CTR
+        toeEndCtr = control.Control(prefix='{}_toeRoll'.format(self.prefix), translateTo= toeEndIKJoint,
+                                    scale=self.rigScale * 0.25, shape='circleX')
+
+        heelCtr = control.Control(prefix='{}_heelRoll'.format(self.prefix), translateTo= self.heelLoc,
+                                  scale = self.rigScale * 0.3, shape='circleX')
+
+        mc.parent(self.heelLoc, heelCtr.C)
+        mc.hide(self.heelLoc)
+
+
+        # Create groups for inner and outer locators
+        innerPivot_Grp = self.innerLoc + '_grp'
+        outerPivot_Grp = self.outerLoc + '_grp'
+
+        mc.group(em=1, n=innerPivot_Grp)
+        mc.group(em=1, n=outerPivot_Grp)
+
+        mc.hide(self.innerLoc)
+        mc.hide(self.outerLoc)
+
+        mc.delete(mc.parentConstraint(self.innerLoc, innerPivot_Grp, mo=0))
+        mc.delete(mc.parentConstraint(self.outerLoc, outerPivot_Grp, mo=0))
+
+        mc.parent(self.innerLoc, innerPivot_Grp)
+        mc.parent(self.outerLoc, outerPivot_Grp)
+
+        # Delete constraint on ik toe joint
+        mc.delete(mc.listRelatives(self.ikParentJoint, c=1, type='orientConstraint')[0])
+
+
+        # Create IK single chain solver from the ball of the foot to the toe
+        toe_IKH = mc.ikHandle(n='{}_toe_ikh'.format(self.prefix), sol='ikSCsolver',
+                              sj= self.ikParentJoint, ee= toeEndIKJoint)[0]
+        mc.hide(toe_IKH)
+
+        # Set up parenting structure
+        mc.parent(toe_IKH, self.toeIKCtr.C)
+        mc.parent(self.ankleRollDriver, toeEndCtr.C)
+        mc.parent(self.toeIKCtr.Off, toeEndCtr.C)
+        mc.parent(toeEndCtr.Off, heelCtr.C)
+        mc.parent(heelCtr.Off, outerPivot_Grp)
+        mc.parent(outerPivot_Grp, innerPivot_Grp)
+
+        # Create a group to hold our feet controls and pivots
+        #footRigGrp = mc.group(n='{}_feetRigGrp'.format(self.prefix), em=1)
+        #mc.delete(mc.pointConstraint(self.ikParentCtr.C, footRigGrp))
+        #mc.parent(innerPivot_Grp, footRigGrp)
+        mc.parent(innerPivot_Grp, self.ikFootCtr.C)
+
+        # Delete the constraint on the ikGroup
+        #mc.delete(mc.listRelatives(self.ikGroupToDrive, c=1, type='parentConstraint')[0])
+        # Drive the ikGroup from the limb to the ballCtr.C
+        #mc.parentConstraint(ballCtr.C, self.ikGroupToDrive, mo=1)
+
+
+
+        # Set up foot roll
+        roll_attr = 'Roll'
+        ball_angle_attr = 'Ball_Roll_Angle'
+        toe_angle_attr = 'Toe_Roll_Angle'
+
+        # Create class member so we can access later
+        self.BallRollAngleAttr = '{}.{}'.format(self.ikFootCtr.C, ball_angle_attr)
+        self.ToeRollAngleAttr = '{}.{}'.format(self.ikFootCtr.C, toe_angle_attr)
+
+
+        footRoll(
+            footCtr = self.ikFootCtr,
+            roll_attr = roll_attr,
+            ball_angle_attr = ball_angle_attr,
+            toe_angle_attr = toe_angle_attr,
+            prefix = self.prefix,
+            rollAxis = self.rollAxis,
+            heelCtr = heelCtr,
+            ballCtr = self.ballCtr,
+            toeEndCtr = toeEndCtr,
+        )
+
+        # Set up rock
+        footRock(
+            footCtr = self.ikFootCtr,
+            rockAxis = self.rockAxis,
+            outer = outerPivot_Grp,
+            inner = innerPivot_Grp
+        )
 
 
 
@@ -467,7 +590,7 @@ def footRoll(
         ballRollDriver = '{}.outputX'.format(ballRoll_mult_percent)
 
     # Feed the out value of our multiply node to ballCtr rotation
-    mc.connectAttr(ballRollDriver, '{}.{}'.format(ballCtr.Off, rollAxisAttr))
+    mc.connectAttr(ballRollDriver, '{}.{}'.format(ballCtr.Offsets[1], rollAxisAttr))
 
 
 def footRock(

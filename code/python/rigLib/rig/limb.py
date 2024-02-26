@@ -85,13 +85,15 @@ class Limb():
         self.rigParts = {'bodyAttachGrp': '',
                          'footAttachGrp': '',
                          'fkControls': '',
+                         'ikControls': '',
                          'switchControl': '',
                          'FKIKSwitchAttr': '',
                          'ikControl': '',
                          'ikJoints': '',
                          'fkJoints': '',
                          'ikGimbalControl': '',
-                         'reverseFootDriven': ''
+                         'reverseFootDriven': '',
+                         'ankleRollGrp': '',
                          }
 
     def build(self):
@@ -111,6 +113,7 @@ class Limb():
         self.rigParts['fkJoints'] = fkRig['joints']
         self.rigParts['ikJoints'] = ikRig['joints']
         self.rigParts['fkControls'] = fkRig['controls']
+        self.rigParts['ikControls'] = ikRig['controls']
 
 
         # Make switch control
@@ -678,21 +681,21 @@ class Limb():
         elif self.ikCtrOrient == 'world':
             orientation = self.baseRig.global1Ctrl
 
-        armCtr = control.Control(prefix='{}_arm_ik'.format(self.prefix), translateTo=ikJoints[-1], rotateTo=orientation,
+        armCtr = control.Control(prefix='{}_IK'.format(self.prefix), translateTo=ikJoints[-1], rotateTo=orientation,
                                  offsets=['null', 'zero', 'auto'],
                                  scale=self.rigScale, parent=self.rigmodule.controlsGrp, shape='cube')
 
-        poleVectorCtr = control.Control(prefix='{}_arm_pv'.format(self.prefix), translateTo=ikJoints[1],
+        poleVectorCtr = control.Control(prefix='{}_PoleVector'.format(self.prefix), translateTo=ikJoints[1],
                                         rotateTo=ikJoints[1], offsets=['null', 'zero', 'auto'],
                                         scale=self.rigScale * 0.25, parent=self.rigmodule.controlsGrp, shape='locator')
 
-        wristGimbalCtr = control.Control(prefix='{}_hand_gimbal'.format(self.prefix), translateTo=ikJoints[-1],
-                                         rotateTo=ikJoints[-1],
+        wristGimbalCtr = control.Control(prefix='{}_Gimbal'.format(self.prefix), translateTo=ikJoints[-1],
+                                         rotateTo=ikJoints[-1], offsets=['null', 'zero', 'auto'],
                                          scale=self.rigScale, lockChannels=['t', 's'], shape='circle')
 
         # Create control at the ball of the foot
-        ballCtr = control.Control(prefix='{}_footRoll'.format(self.prefix), translateTo = ikJoints[-1],
-                                  scale=self.rigScale * 0.5, shape='circleX')
+        ballCtr = control.Control(prefix='{}_Roll'.format(self.prefix), translateTo = ikJoints[-1],
+                                  scale=self.rigScale * 0.5, shape='circleX', offsets=['null', 'zero', 'auto'])
 
         controls = [armCtr, poleVectorCtr, wristGimbalCtr, ballCtr]
 
@@ -763,13 +766,16 @@ class Limb():
         mc.orientConstraint(armCtr.C, ikRotateNoAimGrp, mo=1)
 
         # Create leg rotate group above ikEndGrp
-        ikRotateGrp = mc.group(n='{}_ikRotate_Grp'.format(self.prefix), em=1)
+        ikRotateGrp = mc.group(n='{}_ikFootRotate_Grp'.format(self.prefix), em=1)
         mc.delete(mc.parentConstraint(ikRotateAimGrp, ikRotateGrp, mo=0))
         mc.parent(ikRotateGrp, self.rigmodule.controlsGrp)
-        mc.pointConstraint(armCtr.C, ikRotateGrp, mo=1)
+        #mc.pointConstraint(armCtr.C, ikRotateGrp, mo=1)
+        mc.parent(ikRotateGrp, armCtr.C)
 
         # Parent ballCtr to ikRotateGrp
         mc.parent(ballCtr.Off, ikRotateGrp)
+
+        self.rigParts['ankleRollGrp'] = ikRotateGrp
 
 
         ikRotateGrp_oConstraint = mc.orientConstraint(ikRotateAimGrp, ikRotateNoAimGrp, ikRotateGrp, mo=1)[0]

@@ -208,7 +208,7 @@ class Biped(char.Character):
             ikAnkleJoint  = self.leftLegRig.rigParts['ikJoints'][-1],
             fkFootCtr  = self.leftLegRig.rigParts['fkControls'][-1],
             ikFootCtr = self.leftLegRig.rigParts['ikControl'],
-            ikParentCtr = self.leftLegRig.rigParts['ikControl'],
+            reverseFootParent = self.leftLegRig.rigParts['ikControl'].C,
             ikGroupToDrive = self.leftLegRig.rigParts['reverseFootDriven'],
             switchAttr = self.leftLegRig.rigParts['FKIKSwitchAttr'],
 
@@ -235,7 +235,7 @@ class Biped(char.Character):
             ikAnkleJoint = self.rightLegRig.rigParts['ikJoints'][-1],
             fkFootCtr = self.rightLegRig.rigParts['fkControls'][-1],
             ikFootCtr = self.rightLegRig.rigParts['ikControl'],
-            ikParentCtr = self.rightLegRig.rigParts['ikControl'],
+            reverseFootParent = self.rightLegRig.rigParts['ikControl'].C,
             ikGroupToDrive = self.rightLegRig.rigParts['reverseFootDriven'],
             switchAttr = self.rightLegRig.rigParts['FKIKSwitchAttr'],
 
