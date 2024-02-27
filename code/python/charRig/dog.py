@@ -8,6 +8,7 @@ from . import char
 from . import project
 
 from rigLib.base import control
+from rigLib.base import module
 
 from rigLib.rig import quadSpine
 from rigLib.rig import neck
@@ -32,11 +33,12 @@ class Dog(char.Character):
 
         self.setup()
         self.preBuildCleanup()
-        self.makeControlSetup(self.baseRig)
+        self.buildRig(self.baseRig)
+        self.buildExtraControls(self.baseRig)
         self.deform()
         #self.setInitialPose()
 
-    def makeControlSetup(self, baseRig):
+    def buildRig(self, baseRig):
 
         # Spine
         spineJoints = ['spine_0_jnt', 'spine_1_jnt', 'spine_2_jnt', 'spine_3_jnt', 'spine_4_jnt', 'spine_5_jnt',
@@ -395,11 +397,19 @@ class Dog(char.Character):
 
 
 
+
+
+    def buildExtraControls(self, baseRig):
+
+        # Make a module to hold new items
+        head_rigmodule = module.Module(prefix = 'headGroup', baseObj = baseRig)
+
         # Left ear
-        earJoints = ['ear_1_jnt', 'ear_2_jnt', 'ear_3_jnt', 'ear_4_jnt', 'ear_5_jnt' ]
+        earJoints = ['ear_1_jnt', 'ear_2_jnt', 'ear_3_jnt', 'ear_4_jnt', 'ear_5_jnt']
 
         leftEarJoints = []
         rightEarJoints = []
+
         for jnt in earJoints:
             leftJoint = 'l_' + jnt
             rightJoint = 'r_' + jnt
@@ -407,22 +417,37 @@ class Dog(char.Character):
             leftEarJoints.append(leftJoint)
             rightEarJoints.append(rightJoint)
 
-
-        leftEarFKRig = fkChain.build(leftEarJoints, rigScale=self.sceneScale, parent = self.neckRig.rigParts['headAttachGrp'],
+        leftEarRig = fkChain.build(leftEarJoints, rigScale=self.sceneScale,
+                                     parent= head_rigmodule.controlsGrp,
                                      offsets=['null', 'zero', 'auto'])
-
 
         # Right ear
-        rightEarJoints = fkChain.build(rightEarJoints, rigScale=self.sceneScale, parent=self.neckRig.rigParts['headAttachGrp'],
-                                     offsets=['null', 'zero', 'auto'])
+        rightEarRig = fkChain.build(rightEarJoints, rigScale=self.sceneScale,
+                                       parent = head_rigmodule.controlsGrp,
+                                       offsets=['null', 'zero', 'auto'])
+
+
 
         # Jaw
         jawJoint = 'jaw_jnt'
-        jawCtr = control.Control(prefix='Jaw', translateTo= jawJoint,
-                                rotateTo= jawJoint, lockChannels= ['s', 'v'],
-                                scale= self.sceneScale, parent = self.neckRig.rigParts['headAttachGrp'],
-                                shape='circle', color = 'cyan')
-        constraint = mc.parentConstraint(jawCtr.C, jawJoint, mo = 1)[0]
+        jawCtr = control.Control(prefix='Jaw', translateTo=jawJoint,
+                                 rotateTo=jawJoint, lockChannels=['s', 'v'],
+                                 scale=self.sceneScale, parent=head_rigmodule.controlsGrp,
+                                 shape='circle', color='cyan')
+        jawConstraint = mc.parentConstraint(jawCtr.C, jawJoint, mo=1)[0]
 
+
+        mc.parentConstraint(self.neckRig.rigParts['headAttachGrp'], leftEarRig['topControl'].Off, mo=1)
+        mc.parentConstraint(self.neckRig.rigParts['headAttachGrp'], rightEarRig['topControl'].Off, mo=1)
+        mc.parentConstraint(self.neckRig.rigParts['headAttachGrp'], jawCtr.Off, mo=1)
+
+        for constraint in leftEarRig['constraints']:
+            mc.parent(constraint, head_rigmodule.noXformGrp)
+
+        for constraint in rightEarRig['constraints']:
+            mc.parent(constraint, head_rigmodule.noXformGrp)
+
+        mc.parent(jawConstraint, head_rigmodule.noXformGrp)
 
         # Face - Blink eye
+

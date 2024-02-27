@@ -84,7 +84,7 @@ class Neck():
         controls = []
 
         # make controls
-        headMainCtr = control.Control(prefix='Head', translateTo=self.headJnt,  rotateTo = self.headJnt, scale=self.rigScale,
+        headCtr = control.Control(prefix='Head', translateTo=self.headJnt,  rotateTo = self.headJnt, scale=self.rigScale,
                                       parent=self.rigmodule.controlsGrp, shape='cube', offsets=['null', 'auto', 'zero'], color = 'cyan')
 
         neckBaseCtr = control.Control(prefix='Neck', translateTo=self.neckJoints[0], rotateTo=self.neckJoints[0], scale=self.rigScale * 2,
@@ -92,7 +92,7 @@ class Neck():
                                       lockChannels = ['s', 'v', 't'], color = 'cyan')
 
 
-        controls = [neckBaseCtr, headMainCtr]
+        controls = [neckBaseCtr, headCtr]
 
 
 
@@ -103,7 +103,7 @@ class Neck():
                                            shape='squareY', color = 'yellow', parent = self.rigmodule.controlsGrp )
 
             # position middle control
-            mc.delete(mc.pointConstraint(headMainCtr.C, neckBaseCtr.C, middleCtrl.Off, mo=0))
+            mc.delete(mc.pointConstraint(headCtr.C, neckBaseCtr.C, middleCtrl.Off, mo=0))
             mc.delete(mc.orientConstraint(self.neckJoints[2], middleCtrl.Off, mo=0))
 
             # Create empty groups to drive middle control
@@ -111,7 +111,7 @@ class Neck():
             followNeckBase = mc.group(em=1, n='{}_hipsFollow'.format(self.prefix))
             mc.delete(mc.parentConstraint(middleCtrl.C, followHead))
             mc.delete(mc.parentConstraint(middleCtrl.C, followNeckBase))
-            mc.parent(followHead, headMainCtr.C)
+            mc.parent(followHead, headCtr.C)
             mc.parent(followNeckBase, neckBaseCtr.C)
 
             mc.pointConstraint(followHead, followNeckBase, middleCtrl.Off, mo=1)
@@ -172,7 +172,7 @@ class Neck():
         if self.middleControl:
             mc.parentConstraint(middleCtrl.C, neckLocatorOffsets[1], mo=False)
 
-        mc.parentConstraint(headMainCtr.C, neckLocatorOffsets[-1], mo=False)
+        mc.parentConstraint(headCtr.C, neckLocatorOffsets[-1], mo=False)
 
 
         # connect spine CV drivers to locators at the neckBase and head
@@ -235,11 +235,11 @@ class Neck():
         mc.parent(headAttachGrp, self.rigmodule.controlsGrp)
         mc.parentConstraint(self.headJnt, headAttachGrp, mo = False)
 
-        # Parent head control to neckBase control
+        '''# Parent head control to neckBase control
         if self.headParentToNeckBase:
-            mc.parent(headMainCtr.Off, neckBaseCtr.C)
+            mc.parent(headCtr.Off, neckBaseCtr.C)
         else:
-            mc.parentConstraint( neckBaseAttachGrp, headMainCtr.Off, mo = 1)
+            mc.parentConstraint( neckBaseAttachGrp, headCtr.Off, mo = 1)'''
 
         # make IK handle
 
@@ -310,7 +310,7 @@ class Neck():
         mc.setAttr('{}.dWorldUpVector'.format(neckIk), x, y, z, type="double3")
         mc.setAttr('{}.dWorldUpVectorEnd'.format(neckIk), x, y, z, type="double3")
 
-        mc.connectAttr('{}.worldMatrix[0]'.format(headMainCtr.C), '{}.dWorldUpMatrixEnd'.format(neckIk))
+        mc.connectAttr('{}.worldMatrix[0]'.format(headCtr.C), '{}.dWorldUpMatrixEnd'.format(neckIk))
         mc.connectAttr('{}.worldMatrix[0]'.format(neckBaseCtr.C), '{}.dWorldUpMatrix'.format(neckIk))
 
 
@@ -324,33 +324,48 @@ class Neck():
             mc.connectAttr('{}.scale'.format(ikJoints[i]), '{}.scale'.format(self.neckJoints[i]))
 
         # connect head joint to head control
-        headConstraint = mc.orientConstraint(headMainCtr.C, self.headJnt, mo=1)[0]
+        headConstraint = mc.orientConstraint(headCtr.C, self.headJnt, mo=1)[0]
         constraints.append(headConstraint)
 
+
+
         # make head orient groups
-        worldGrp = mc.group(n='globalOrient', em=True)
 
-        globalOrientGrp = mc.group(n='head_globalOrient', em=True)
-        chestOrientGrp = mc.group(n='head_chestOrient', em=True)
-        neckOrientGrp = mc.group(n='head_neckOrient', em=True)
+        headOrientGroups = mc.group(n = '{}_headOrientGrps'.format(self.prefix), em = 1)
+        mc.parentConstraint(neckBaseCtr.C, headOrientGroups, mo=0)
+        mc.parent(headOrientGroups, self.rigmodule.partsGrp)
 
-        mc.delete(mc.parentConstraint(headMainCtr.C, globalOrientGrp, mo=0))
-        mc.delete(mc.parentConstraint(headMainCtr.C, chestOrientGrp, mo=0))
-        mc.delete(mc.parentConstraint(headMainCtr.C, neckOrientGrp, mo=0))
-        mc.parent(chestOrientGrp, neckBaseAttachGrp)
-        mc.parent(globalOrientGrp, neckBaseAttachGrp)
-        mc.parent(neckOrientGrp, neckBaseAttachGrp)
+        worldGrp = mc.group(n='{}_globalOrient'.format(self.prefix), em=True)
+
+        globalOrientGrp = mc.group(n='{}_head_globalOrient'.format(self.prefix), em=True)
+        chestOrientGrp = mc.group(n='{}_head_chestOrient'.format(self.prefix), em=True)
+        neckOrientGrp = mc.group(n='{}_head_neckOrient'.format(self.prefix), em=True)
+
+        headDriver = mc.group(n='{}_headDriver'.format(self.prefix), em=True)
+
+        mc.delete(mc.parentConstraint(headCtr.C, globalOrientGrp, mo=0))
+        mc.delete(mc.parentConstraint(headCtr.C, chestOrientGrp, mo=0))
+        mc.delete(mc.parentConstraint(headCtr.C, neckOrientGrp, mo=0))
+        mc.delete(mc.parentConstraint(headCtr.C, headDriver, mo=0))
+
+        mc.parent(globalOrientGrp, headOrientGroups)
+        mc.parent(chestOrientGrp, headOrientGroups)
+        mc.parent(neckOrientGrp, headOrientGroups)
+        mc.parent(headDriver, headOrientGroups)
 
         mc.orientConstraint(worldGrp, globalOrientGrp, mo=1)
         mc.orientConstraint(neckBaseCtr.C, neckOrientGrp, mo=1)
 
+        # Parent constrain head control to headDriverGrp
+        mc.parentConstraint(headDriver, headCtr.Off, mo = 1)
+
 
         # setup head orientation switch
         attr = "Head_Orient"
-        mc.addAttr(headMainCtr.C, ln=attr, at='enum', enumName='neck:chest:world', k=1)
-        mc.setAttr('{}.{}'.format(headMainCtr.C, attr), cb=1)
-        mc.setAttr('{}.{}'.format(headMainCtr.C, attr), 2)
-        self.HeadOrient = '{}.{}'.format(headMainCtr.C, attr)
+        mc.addAttr(headCtr.C, ln=attr, at='enum', enumName='neck:chest:world', k=1)
+        mc.setAttr('{}.{}'.format(headCtr.C, attr), cb=1)
+        mc.setAttr('{}.{}'.format(headCtr.C, attr), 2)
+        self.HeadOrient = '{}.{}'.format(headCtr.C, attr)
 
         # orient constraint head control
 
@@ -364,35 +379,35 @@ class Neck():
         chestSpaceDriver = chestOrientGrp
         globalSpaceDriver = globalOrientGrp
 
-        headOrientConstraint = mc.orientConstraint(neckSpaceDriver, chestSpaceDriver, globalSpaceDriver, headMainCtr.Offsets[1], mo=1)[0]
+        headOrientConstraint = mc.orientConstraint(neckSpaceDriver, chestSpaceDriver, globalSpaceDriver, headDriver, mo=1)[0]
         weights = mc.orientConstraint(headOrientConstraint, q=1, weightAliasList = 1)
 
         # set driven key for neck orient
-        mc.setAttr('{}.{}'.format(headMainCtr.C, attr), 0)
+        mc.setAttr('{}.{}'.format(headCtr.C, attr), 0)
         mc.setAttr( '{}.{}'.format(headOrientConstraint, weights[0]), 1)
         mc.setAttr('{}.{}'.format(headOrientConstraint, weights[1]), 0)
         mc.setAttr('{}.{}'.format(headOrientConstraint, weights[2]), 0)
         for i in range(len(weights)):
-            mc.setDrivenKeyframe('{}.{}'.format(headOrientConstraint, weights[i]), cd='{}.{}'.format(headMainCtr.C, attr))
+            mc.setDrivenKeyframe('{}.{}'.format(headOrientConstraint, weights[i]), cd='{}.{}'.format(headCtr.C, attr))
 
         # set driven key for chest orient
-        mc.setAttr('{}.{}'.format(headMainCtr.C, attr), 1)
+        mc.setAttr('{}.{}'.format(headCtr.C, attr), 1)
         mc.setAttr('{}.{}'.format(headOrientConstraint, weights[0]), 0)
         mc.setAttr('{}.{}'.format(headOrientConstraint, weights[1]), 1)
         mc.setAttr('{}.{}'.format(headOrientConstraint, weights[2]), 0)
         for i in range(len(weights)):
-            mc.setDrivenKeyframe('{}.{}'.format(headOrientConstraint, weights[i]), cd = '{}.{}'.format(headMainCtr.C, attr))
+            mc.setDrivenKeyframe('{}.{}'.format(headOrientConstraint, weights[i]), cd = '{}.{}'.format(headCtr.C, attr))
 
         # set driven key for global orient
-        mc.setAttr('{}.{}'.format(headMainCtr.C, attr), 2)
+        mc.setAttr('{}.{}'.format(headCtr.C, attr), 2)
         mc.setAttr('{}.{}'.format(headOrientConstraint, weights[0]), 0)
         mc.setAttr('{}.{}'.format(headOrientConstraint, weights[1]), 0)
         mc.setAttr('{}.{}'.format(headOrientConstraint, weights[2]), 1)
         for i in range(len(weights)):
-            mc.setDrivenKeyframe('{}.{}'.format(headOrientConstraint, weights[i]), cd='{}.{}'.format(headMainCtr.C, attr))
+            mc.setDrivenKeyframe('{}.{}'.format(headOrientConstraint, weights[i]), cd='{}.{}'.format(headCtr.C, attr))
 
         # set default to follow chest
-        mc.setAttr('{}.{}'.format(headMainCtr.C, attr), 1)
+        mc.setAttr('{}.{}'.format(headCtr.C, attr), 1)
 
         # set up stretchy neck
 
@@ -415,13 +430,13 @@ class Neck():
         # Make blender to turn off Stretchy setup
 
         stretch_attr = 'Stretchy_Neck'
-        mc.addAttr(headMainCtr.C, ln=stretch_attr, at='double', min=0, max=1, dv=0, k=1)
-        self.StretchyAttr = '{}.{}'.format( headMainCtr.C, stretch_attr)
+        mc.addAttr(headCtr.C, ln=stretch_attr, at='double', min=0, max=1, dv=0, k=1)
+        self.StretchyAttr = '{}.{}'.format( headCtr.C, stretch_attr)
 
         # make blender node for stretchy spine
         blenderStretch = mc.shadingNode('blendColors', asUtility=True,
                                         n='{}_blenderNeckStretch'.format(self.prefix))
-        mc.connectAttr('{}.{}'.format(headMainCtr.C, stretch_attr), '{}.blender'.format(blenderStretch))
+        mc.connectAttr('{}.{}'.format(headCtr.C, stretch_attr), '{}.blender'.format(blenderStretch))
         mc.connectAttr('{}.outputX'.format(stretchRatio), '{}.color1.color1R'.format(blenderStretch))
         mc.setAttr('{}.color2.color2R'.format(blenderStretch), 1)
 
@@ -462,7 +477,7 @@ class Neck():
 
         # rigParts dictionary
         self.rigParts['baseAttachGrp'] = neckBaseAttachGrp
-        self.rigParts['headCtr'] = headMainCtr
+        self.rigParts['headCtr'] = headCtr
         self.rigParts['controls'] = controls
         self.rigParts['headAttachGrp'] = headAttachGrp
 
