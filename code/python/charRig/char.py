@@ -67,3 +67,13 @@ class Character:
     def hideDeformationSkeleton(self):
         mc.hide(self.skeletonGrp)
 
+    def preBuildCleanup(self):
+
+        # Perform cleanup tasks before building
+
+        # Set all deformation joints segment scale compensate to 0
+        joints = mc.ls(type='joint')
+        for joint in joints:
+            mc.setAttr('{}.segmentScaleCompensate'.format(joint), 1)
+
+

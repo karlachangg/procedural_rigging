@@ -35,6 +35,7 @@ def addFingerCurlDrivers( fingerControls, ctr = '', follow = '', prefix = '', ct
         curlAttr = 'rz'
 
     curlDirection = 1
+
     if '-' in curlAxis:
         curlDirection = -1
 

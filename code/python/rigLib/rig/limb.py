@@ -227,7 +227,7 @@ class Limb():
         # Create foot attach group
         footAttachGrp = mc.group(em=1, n='{}_footAttachGrp'.format(self.prefix))
         mc.parent(footAttachGrp, self.rigmodule.partsGrp)
-        mc.parentConstraint(self.limbJoints[2], footAttachGrp, mo=0)
+        mc.parentConstraint(self.limbJoints[-1], footAttachGrp, mo=0)
 
         # Set rigPart objects to call later
         self.rigParts['footAttachGrp'] = footAttachGrp

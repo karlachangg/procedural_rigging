@@ -78,7 +78,21 @@ def getMayaStringName( name ):
 	return finalName
 
 
+def getName(name):
 
+	"""
+	get the name of a string assuming its after the prefix
+	:return:
+	"""
+
+	edits = name.split('_')
+
+	if len(edits) < 2:
+		return name
+
+	name = edits[1]
+
+	return name
 
 
 

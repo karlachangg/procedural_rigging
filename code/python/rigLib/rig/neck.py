@@ -232,7 +232,7 @@ class Neck():
         mc.parentConstraint(neckBaseAttachGrp, neckBaseCtr.Off, mo=True)
 
         headAttachGrp = mc.group(n='{}_HeadAttachGrp'.format(self.prefix), em=1)
-        mc.parent(headAttachGrp, self.rigmodule.partsGrp)
+        mc.parent(headAttachGrp, self.rigmodule.controlsGrp)
         mc.parentConstraint(self.headJnt, headAttachGrp, mo = False)
 
         # Parent head control to neckBase control

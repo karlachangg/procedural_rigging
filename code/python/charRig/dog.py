@@ -6,18 +6,20 @@ main module
 
 from . import char
 from . import project
+
+from rigLib.base import control
+
 from rigLib.rig import quadSpine
 from rigLib.rig import neck
 from rigLib.rig import tail
 from rigLib.rig import ikChain
-from rigLib.rig import leg
-from rigLib.rig import arm
 from rigLib.rig import limb
 from rigLib.rig import hand
 from rigLib.rig import bendyLimb
 from rigLib.rig import foot
+from rigLib.rig import fkChain
 
-from rigLib.utils import joint
+
 
 import maya.cmds as mc
 
@@ -29,6 +31,7 @@ class Dog(char.Character):
     def build(self):
 
         self.setup()
+        self.preBuildCleanup()
         self.makeControlSetup(self.baseRig)
         self.deform()
         #self.setInitialPose()
@@ -329,13 +332,97 @@ class Dog(char.Character):
 
         self.rightBackFootRig.build()
 
+        # Left front fingers
+        fingerJoints = ['indexFinger_1_jnt', 'middleFinger_1_jnt', 'ringFinger_1_jnt', 'pinkyFinger_1_jnt']
+
+        leftFingersRig = hand.Hand(
+            fingerBaseJoints=fingerJoints,
+            metaJoints= False,
+            includeFingerEnds=False,
+            handAttachGrp=self.leftArmRig.rigParts['footAttachGrp'],
+            prefix = 'fingers',
+            side='l',
+            rigScale=self.sceneScale,
+            baseRig=baseRig
+        )
+        leftFingersRig.build()
+
+        # Right front fingers
+        rightFingersRig = hand.Hand(
+            fingerBaseJoints=fingerJoints,
+            metaJoints = False,
+            includeFingerEnds=False,
+            handAttachGrp=self.rightArmRig.rigParts['footAttachGrp'],
+            moveHandCtr = '-x',
+            prefix = 'fingers',
+            side= 'r',
+            rigScale=self.sceneScale,
+            baseRig=baseRig
+        )
+        rightFingersRig.build()
+
+
+        # Left back toes
+        toeFingerJoints = ['indexToe_1_jnt', 'middleToe_1_jnt', 'ringToe_1_jnt', 'pinkyToe_1_jnt']
+
+        leftToesRig = hand.Hand(
+            fingerBaseJoints=toeFingerJoints,
+            metaJoints=False,
+            includeFingerEnds=False,
+            handAttachGrp=self.leftLegRig.rigParts['footAttachGrp'],
+            prefix='toes',
+            side='l',
+            rigScale=self.sceneScale,
+            baseRig=baseRig
+        )
+        leftToesRig.build()
+
+        rightToesRig = hand.Hand(
+            fingerBaseJoints=toeFingerJoints,
+            metaJoints=False,
+            includeFingerEnds=False,
+            handAttachGrp=self.rightLegRig.rigParts['footAttachGrp'],
+            moveHandCtr = '-x',
+            prefix='toes',
+            side='r',
+            rigScale=self.sceneScale,
+            baseRig=baseRig
+        )
+        rightToesRig.build()
+
 
 
 
 
 
         # Left ear
+        earJoints = ['ear_1_jnt', 'ear_2_jnt', 'ear_3_jnt', 'ear_4_jnt', 'ear_5_jnt' ]
+
+        leftEarJoints = []
+        rightEarJoints = []
+        for jnt in earJoints:
+            leftJoint = 'l_' + jnt
+            rightJoint = 'r_' + jnt
+
+            leftEarJoints.append(leftJoint)
+            rightEarJoints.append(rightJoint)
+
+
+        leftEarFKRig = fkChain.build(leftEarJoints, rigScale=self.sceneScale, parent = self.neckRig.rigParts['headAttachGrp'],
+                                     offsets=['null', 'zero', 'auto'])
+
 
         # Right ear
+        rightEarJoints = fkChain.build(rightEarJoints, rigScale=self.sceneScale, parent=self.neckRig.rigParts['headAttachGrp'],
+                                     offsets=['null', 'zero', 'auto'])
+
+        # Jaw
+        jawJoint = 'jaw_jnt'
+        jawCtr = control.Control(prefix='Jaw', translateTo= jawJoint,
+                                rotateTo= jawJoint, lockChannels= ['s', 'v'],
+                                scale= self.sceneScale, parent = self.neckRig.rigParts['headAttachGrp'],
+                                shape='circle', color = 'cyan')
+        constraint = mc.parentConstraint(jawCtr.C, jawJoint, mo = 1)[0]
+
 
         # Face - Blink eye

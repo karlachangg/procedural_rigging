@@ -155,7 +155,7 @@ class Biped(char.Character):
         mc.parentConstraint(self.spineRig.rigParts['chestAttachGrp'], self.rightArmRig.rigParts['bodyAttachGrp'], mo=1)
 
         # Left hand
-        fingerJoints = ['finger_index_0_jnt', 'finger_middle_0_jnt', 'finger_ring_0_jnt', 'finger_pinky_0_jnt', 'thumb_0_jnt']
+        fingerJoints = ['indexFinger_0_jnt', 'middleFinger_0_jnt', 'ringFinger_0_jnt', 'pinkyFinger_0_jnt', 'thumb_0_jnt']
         metaJoints = True
         innerCupJoint = 'cup_inner_jnt'
         outerCupJoint = 'cup_jnt'
@@ -183,6 +183,7 @@ class Biped(char.Character):
             outerCupJoint = outerCupJoint,
             includeFingerEnds = False,
             handAttachGrp = self.rightArmRig.rigParts['handAttachGrp'],
+            moveHandCtr= '-x',
             prefix = 'hand',
             side = 'r',
             rigScale = self.sceneScale,
@@ -204,8 +205,9 @@ class Biped(char.Character):
             innerLoc = innerLoc,
             outerLoc = outerLoc,
 
-            fkAnkleJoint = self.leftLegRig.rigParts['fkJoints'][-1],
-            ikAnkleJoint  = self.leftLegRig.rigParts['ikJoints'][-1],
+            fkParentJoint = self.leftLegRig.rigParts['fkJoints'][-1],
+            ikParentJoint  = self.leftLegRig.rigParts['ikJoints'][-1],
+
             fkFootCtr  = self.leftLegRig.rigParts['fkControls'][-1],
             ikFootCtr = self.leftLegRig.rigParts['ikControl'],
             reverseFootParent = self.leftLegRig.rigParts['ikControl'].C,
@@ -218,6 +220,12 @@ class Biped(char.Character):
             rockAxis = '-z',
             rigScale = self.sceneScale,
             baseRig = baseRig
+
+
+
+
+
+
         )
 
         self.leftFootRig.build()
@@ -231,8 +239,8 @@ class Biped(char.Character):
             innerLoc = innerLoc,
             outerLoc = outerLoc,
 
-            fkAnkleJoint = self.rightLegRig.rigParts['fkJoints'][-1],
-            ikAnkleJoint = self.rightLegRig.rigParts['ikJoints'][-1],
+            fkParentJoint = self.rightLegRig.rigParts['fkJoints'][-1],
+            ikParentJoint = self.rightLegRig.rigParts['ikJoints'][-1],
             fkFootCtr = self.rightLegRig.rigParts['fkControls'][-1],
             ikFootCtr = self.rightLegRig.rigParts['ikControl'],
             reverseFootParent = self.rightLegRig.rigParts['ikControl'].C,
