@@ -249,17 +249,7 @@ class QuadSpine():
                                       rotateTo = ikSpineJoints[-1], color = 'cyan',
                                       scale = self.rigScale * 2, shape = 'cube', parent = self.rigmodule.controlsGrp)
 
-        '''# Create hybrid FK drivers
-        middleCtrlHybridFK = control.Control(prefix='{}_mid_Forward'.format(self.prefix),
-                                             rotateTo=middleCtrlIK.C, color='yellow',
-                                             scale=self.rigScale * 1.7, shape='circleX',
-                                             parent=self.rigmodule.controlsGrp)
 
-        chestCtrlHybridFK = control.Control(prefix='{}_chest_Forward'.format(self.prefix),
-                                            translateTo = ikSpineJoints[-1],
-                                            rotateTo=chestCtrlIK.C, color='yellow',
-                                            scale=self.rigScale * 2, shape='circleX',
-                                            parent=self.rigmodule.controlsGrp)'''
 
         # Make hybrid FK Controls which will drive IK controls
         fkBackCtr = control.Control(prefix='{}_backFK'.format(self.prefix), translateTo = ik_root_jnt,

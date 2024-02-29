@@ -4,6 +4,8 @@ neck @ rig
 
 import maya.cmds as mc
 
+from . import fkChain
+
 from ..base import module
 from ..base import control
 from ..utils import joint
@@ -56,43 +58,190 @@ class Neck():
         self.rigParts = {
             'module': self.rigmodule,
             'baseAttachGrp': '',
-            'headCtr': '',
-            'controls': '',
-            'headAttachGrp': ''
+            'fkControls': '',
+            'ikControls': '',
+            'headAttachGrp': '',
+            'headCtr': ''
+
         }
-
-
 
     def build(self):
 
-        """
-        :param neckJoints: list(str) list of 5 neck joints, last one located at head joint
-        :param headJnt: str, head joint at the end of neck joint chain
-        :param neckCurve: str, name of spine cubic curve with 5 cvs matching neck joints
-        :param prefix:  str, prefix to name new objects
-        :param rigScale: float, scale factor for size of controls
-        :param baseRig: instance of base.module.Base class
-        :return: dictionary with rig module objects
-        """
+        # Construct a list of all neck joints: neck joints + head
+        self.neckHeadJoints = []
+        self.neckHeadJoints.extend(self.neckJoints)
+        self.neckHeadJoints.append(self.headJnt)
+
+        # Make body attach group
+        self.neckBaseAttachGrp = mc.group(n='{}_BaseAttachGrp'.format(self.prefix), em=1)
+        mc.delete(mc.parentConstraint(self.neckJoints[0], self.neckBaseAttachGrp, mo=False))
+        mc.parent(self.neckBaseAttachGrp, self.rigmodule.partsGrp)
+
+        # Make FK rig
+        fkRig = self.buildFK()
+
+        # Define rigParts properties
+        self.rigParts['fkControls'] = fkRig['controls']
 
 
-        # duplicate spine joints to make IK spine joints
-        ikJoints = joint.duplicateChain(self.neckJoints, oldSuffix='jnt', newSuffix='IK_jnt')
+        # Make IK rig
+        ikRig = self.buildIK()
+        self.rigParts['ikControls'] = ikRig['controls']
+
+        # Hake FK base control and IK Neck Base control follow neckBaseAttachGrp
+        mc.parentConstraint(self.neckBaseAttachGrp, fkRig['controls'][0].Off, mo=True)
+        mc.parentConstraint(self.neckBaseAttachGrp, ikRig['controls'][1].Off, mo=True)
+
+        # Connect deformation joints to fk and ik joints
+        constraints = []
+        for i in range(len(self.neckHeadJoints)):
+            constraints.append(mc.parentConstraint(fkRig['joints'][i], ikRig['joints'][i], self.neckHeadJoints[i], mo=0)[0])
+
+        # Make switch control
+
+        switchCtr = control.Control(prefix='{}_FKIK'.format(self.prefix), translateTo=self.neckHeadJoints[0],
+                                    scale=self.rigScale * 0.5, parent=self.rigmodule.controlsGrp, shape='plus',
+                                    color='yellow')
+        switch_attr = 'FKIK_Switch'
+        mc.addAttr(switchCtr.C, ln=switch_attr, at='double', min=0, max=1, dv=0, k=1)
+
+        control._rotateCtrlShape(switchCtr, axis='x', value=90)
+
+        # Define rigParts properties
+        self.rigParts['switchControl'] = switchCtr
+
+        # make reverse node
+        reverse = mc.shadingNode('reverse', asUtility=True, n='{}_neck_switch_reverse'.format(self.prefix))
+        mc.connectAttr('{}.{}'.format(switchCtr.C, switch_attr), '{}.inputX'.format(reverse))
+
+        for constraint in constraints:
+            weights = mc.parentConstraint(constraint, q=1, weightAliasList=1)
+            mc.connectAttr('{}.{}'.format(switchCtr.C, switch_attr), '{}.{}'.format(constraint, weights[1]))
+            mc.connectAttr('{}.outputX'.format(reverse), '{}.{}'.format(constraint, weights[0]))
+
+        # FK IK control visibility
+        for ctrl in fkRig['controls']:
+            mc.connectAttr('{}.outputX'.format(reverse), '{}.v'.format(ctrl.Off))
+        for ctrl in ikRig['controls']:
+            mc.connectAttr('{}.{}'.format(switchCtr.C, switch_attr), '{}.v'.format(ctrl.Off))
+
+        # Setup blend between joint scales
+
+        for i in range(len(self.neckHeadJoints)):
+            blendNode = mc.shadingNode('blendColors', asUtility=True, n='{}_jointScale_blend{}'.format(self.prefix, i))
+            mc.connectAttr('{}.{}'.format(switchCtr.C, switch_attr), '{}.blender'.format(blendNode))
+
+            mc.connectAttr('{}.sx'.format(ikRig['joints'][i]), '{}.color1.color1R'.format(blendNode))
+            mc.connectAttr('{}.sy'.format(ikRig['joints'][i]), '{}.color1.color1G'.format(blendNode))
+            mc.connectAttr('{}.sz'.format(ikRig['joints'][i]), '{}.color1.color1B'.format(blendNode))
+
+            mc.connectAttr('{}.sx'.format(fkRig['joints'][i]), '{}.color2.color2R'.format(blendNode))
+            mc.connectAttr('{}.sy'.format(fkRig['joints'][i]), '{}.color2.color2G'.format(blendNode))
+            mc.connectAttr('{}.sz'.format(fkRig['joints'][i]), '{}.color2.color2B'.format(blendNode))
+
+            mc.connectAttr('{}.outputR'.format(blendNode), '{}.sx'.format(self.neckHeadJoints[i]))
+            mc.connectAttr('{}.outputG'.format(blendNode), '{}.sy'.format(self.neckHeadJoints[i]))
+            mc.connectAttr('{}.outputB'.format(blendNode), '{}.sz'.format(self.neckHeadJoints[i]))
+
+        # organize
+        constraintGrp = mc.group(constraints, n='defSkeleton_{}_constraints'.format(self.prefix))
+        mc.parent(constraintGrp, self.baseRig.noXformGrp)
+
+        # move switch ctr
+        mc.move(5, switchCtr.Off, x=True, os=1)
+
+        # make attach groups
+        headAttachGrp = mc.group(n='{}_headAttach_grp'.format(self.prefix), em=True)
+        mc.parentConstraint(self.headJnt, headAttachGrp, mo=0)
+        mc.parent(headAttachGrp, self.rigmodule.partsGrp)
 
 
-        mc.parent(ikJoints[0], self.rigmodule.jointsGrp)
+
+
+
+        # rigParts dictionary
+        self.rigParts['headAttachGrp'] = headAttachGrp
+        self.rigParts['baseAttachGrp'] = self.neckBaseAttachGrp
+
+    def buildFK(self):
+
+        '''
+        Create a simple FK rig. Duplicates deformation joints, creates simple FK rig on duplicate, and returns
+        library of objects
+        '''
+
+        # duplicate neck joints to make FK neck joints
+        fkNeckJoints = joint.duplicateChain(self.neckJoints, oldSuffix='jnt', newSuffix='FK_jnt')
+
+
+        # Duplicate head joint
+        fk_head_name = self.headJnt.replace('jnt', 'FK_jnt')
+        fkHeadJoint = mc.duplicate(self.headJnt, n = fk_head_name, parentOnly=True)[0]
+
+        mc.parent(fkNeckJoints[0], self.rigmodule.jointsGrp)
+        mc.parent(fkHeadJoint, fkNeckJoints[-1])
+
+        # Make fkJoints list to return
+        fkJoints = []
+        fkJoints.extend(fkNeckJoints)
+        fkJoints.append(fkHeadJoint)
+
+        fkNeckControlChain = fkChain.build(joints = fkNeckJoints[:-1], rigScale=self.rigScale * 2, parent = self.rigmodule.controlsGrp,
+                                       shape='circleX', lockChannels=['t'], color='cyan')
+
+        headFKControl =  control.Control(prefix= 'HeadFK_{}'.format(self.prefix), translateTo=self.headJnt,
+                                        rotateTo = self.headJnt, scale=self.rigScale,
+                                        parent= fkNeckControlChain['controls'][-1].C, shape='circleX',
+                                       offsets=['null', 'auto', 'zero'], color = 'cyan')
+
+        mc.parentConstraint(headFKControl.C, fkHeadJoint, mo = 1)[0]
+
+        controls = fkNeckControlChain['controls']
+        controls.append(headFKControl)
+
+        return {'joints': fkJoints, 'controls': controls}
+
+
+
+    def buildIK(self):
+
+        ikNeckJoints = joint.duplicateChain(self.neckJoints, oldSuffix='jnt', newSuffix='IK_jnt')
+
+        # Duplicate head joint
+        ik_head_name = self.headJnt.replace('jnt', 'IK_jnt')
+        ikHeadJoint = mc.duplicate(self.headJnt, n=ik_head_name, parentOnly=True)[0]
+
+        mc.parent(ikNeckJoints[0], self.rigmodule.jointsGrp)
+        mc.parent(ikHeadJoint, ikNeckJoints[-1])
+
+        # Make ikJoints list to return
+        ikJoints = []
+        ikJoints.extend(ikNeckJoints)
+        ikJoints.append(ikHeadJoint)
+
+
         controls = []
 
-        # make controls
-        headCtr = control.Control(prefix='Head', translateTo=self.headJnt,  rotateTo = self.headJnt, scale=self.rigScale,
-                                      parent=self.rigmodule.controlsGrp, shape='cube', offsets=['null', 'auto', 'zero'], color = 'cyan')
 
-        neckBaseCtr = control.Control(prefix='Neck', translateTo=self.neckJoints[0], rotateTo=self.neckJoints[0], scale=self.rigScale * 2,
-                                      parent=self.rigmodule.controlsGrp, shape='circleX', offsets=['null', 'auto', 'zero'],
+        # make controls
+        headCtr = control.Control(prefix='Head', translateTo = ikHeadJoint,  rotateTo = ikHeadJoint, scale=self.rigScale,
+                                    parent=self.rigmodule.controlsGrp, shape='cube', offsets=['null', 'auto', 'zero'],
+                                    color = 'cyan')
+
+        neckBaseCtr = control.Control(prefix='Neck', translateTo= ikNeckJoints[0], rotateTo= ikNeckJoints[0],
+                                      scale=self.rigScale * 2, parent=self.rigmodule.controlsGrp,
+                                      shape='cube', offsets=['null', 'auto', 'zero'],
                                       lockChannels = ['s', 'v', 't'], color = 'cyan')
 
+        neckHybridFKCtr = control.Control(prefix='{}_BaseFK'.format(self.prefix), translateTo = ikNeckJoints[0],
+                                    rotateTo = ikNeckJoints[0], offsets=['null', 'auto', 'zero'],
+                                    scale=self.rigScale * 2, shape='circleX', parent=self.rigmodule.controlsGrp)
 
-        controls = [neckBaseCtr, headCtr]
+        mc.parent(headCtr.Off, neckHybridFKCtr.C)
+        #mc.parent(neckBaseCtr.Off, neckHybridFKCtr.C)
+
+
+        controls = [neckHybridFKCtr, neckBaseCtr, headCtr ]
 
 
 
@@ -100,11 +249,11 @@ class Neck():
         if self.middleControl:
 
             middleCtrl = control.Control(prefix = '{}_Middle'.format(self.prefix), scale = self.rigScale * 1.5,
-                                           shape='squareY', color = 'yellow', parent = self.rigmodule.controlsGrp )
+                                           shape='squareY', color = 'cyan', parent = self.rigmodule.controlsGrp )
 
             # position middle control
             mc.delete(mc.pointConstraint(headCtr.C, neckBaseCtr.C, middleCtrl.Off, mo=0))
-            mc.delete(mc.orientConstraint(self.neckJoints[2], middleCtrl.Off, mo=0))
+            mc.delete(mc.orientConstraint(ikNeckJoints[2], middleCtrl.Off, mo=0))
 
             # Create empty groups to drive middle control
             followHead = mc.group(em=1, n='{}_chestFollow'.format(self.prefix))
@@ -116,9 +265,9 @@ class Neck():
 
             mc.pointConstraint(followHead, followNeckBase, middleCtrl.Off, mo=1)
 
+            mc.parent(middleCtrl.Off, neckHybridFKCtr.C)
+
             controls.append( middleCtrl)
-
-
 
 
 
@@ -142,7 +291,7 @@ class Neck():
             mc.parent(offset, locGrp)
             mc.xform(offset, t=cvXform)
             # orient the cv offset group to the neck base joint
-            mc.delete(mc.orientConstraint(self.neckJoints[0], offset, mo = 0))
+            mc.delete(mc.orientConstraint(ikNeckJoints[0], offset, mo = 0))
             mc.connectAttr('{}.worldPosition[0]'.format(locShape), neckCurveShape + '.controlPoints[%d]' % (i))
 
         mc.parent(locGrp, self.rigmodule.partsGrp)
@@ -178,73 +327,62 @@ class Neck():
         # connect spine CV drivers to locators at the neckBase and head
         # cv 0
         mc.parentConstraint(neckLocators[0],driverLocatorOffsets[0], mo=True )
-        # cv 4
-        mc.parentConstraint(neckLocators[-1], driverLocatorOffsets[4], mo=True)
+        # cv 1
+        mc.parentConstraint(neckLocators[0], driverLocatorOffsets[1], mo=True)
+        # cv 6
+        mc.parentConstraint(neckLocators[-1], driverLocatorOffsets[6], mo=True)
+        # cv 5
+        mc.parentConstraint(neckLocators[-1], driverLocatorOffsets[5], mo=True)
 
         if self.middleControl:
-            # cv 2
-            mc.parentConstraint( neckLocators[1], driverLocatorOffsets[2], mo = True)
+            # cv 3
+            mc.parentConstraint( neckLocators[1], driverLocatorOffsets[3], mo = True)
 
-            # cv 1 values
-            cv1SecondDriver = neckLocators[1]
-            cv1weight1Value = 0.5
-            cv1weight2Value = 0.5
+            # cv 2 values
+            cv2SecondDriver = neckLocators[1]
+            cv2weight1Value = 0.5
+            cv2weight2Value = 0.5
 
-            # cv 3 values
-            cv3FirstDriver = neckLocators[1]
-            cv3weight1Value = 0.5
-            cv3weight2Value = 0.5
+            # cv 4 values
+            cv4FirstDriver = neckLocators[1]
+            cv4weight1Value = 0.5
+            cv4weight2Value = 0.5
 
 
         else:
-            # cv 2
-            mc.parentConstraint(neckLocators[0], neckLocators[-1], driverLocatorOffsets[2], mo=True)
-            mc.parentConstraint(neckLocators[0], driverLocatorOffsets[2], e=True, w=0.5)
-            mc.parentConstraint(neckLocators[-1], driverLocatorOffsets[2], e=True, w=0.5)
+            # cv 3
+            mc.parentConstraint(neckLocators[0], neckLocators[-1], driverLocatorOffsets[3], mo=True)
+            mc.parentConstraint(neckLocators[0], driverLocatorOffsets[3], e=True, w=0.5)
+            mc.parentConstraint(neckLocators[-1], driverLocatorOffsets[3], e=True, w=0.5)
 
-            # cv 1 values
-            cv1SecondDriver = neckLocators[-1]
-            cv1weight1Value = 0.75
-            cv1weight2Value = 0.25
+            # cv 2 values
+            cv2SecondDriver = neckLocators[-1]
+            cv2weight1Value = 0.75
+            cv2weight2Value = 0.25
 
-            # cv 3 values
-            cv3FirstDriver = neckLocators[0]
-            cv3weight1Value = 0.25
-            cv3weight2Value = 0.75
-
-
+            # cv 4 values
+            cv4FirstDriver = neckLocators[0]
+            cv4weight1Value = 0.25
+            cv4weight2Value = 0.75
 
 
-        # cv 1
-        mc.parentConstraint(neckLocators[0], cv1SecondDriver, driverLocatorOffsets[1], mo=True)
-        mc.parentConstraint(neckLocators[0], driverLocatorOffsets[1], e=True, w = cv1weight1Value)
-        mc.parentConstraint(cv1SecondDriver, driverLocatorOffsets[1], e=True, w = cv1weight2Value)
-
-        # cv 3
-        mc.parentConstraint(cv3FirstDriver, neckLocators[-1], driverLocatorOffsets[3], mo=True)
-        mc.parentConstraint(cv3FirstDriver, driverLocatorOffsets[3], e=True, w = cv3weight1Value)
-        mc.parentConstraint(neckLocators[-1], driverLocatorOffsets[3], e=True, w = cv3weight2Value)
 
 
-        # make attach groups
-        neckBaseAttachGrp = mc.group(n='{}BaseAttachGrp'.format(self.prefix), em=1)
-        mc.delete(mc.parentConstraint(neckBaseCtr.C, neckBaseAttachGrp, mo=False))
-        mc.parentConstraint(neckBaseAttachGrp, neckBaseCtr.Off, mo=True)
+        # cv 2
+        mc.parentConstraint(neckLocators[0], cv2SecondDriver, driverLocatorOffsets[2], mo=True)
+        mc.parentConstraint(neckLocators[0], driverLocatorOffsets[2], e=True, w = cv2weight1Value)
+        mc.parentConstraint(cv2SecondDriver, driverLocatorOffsets[2], e=True, w = cv2weight2Value)
 
-        headAttachGrp = mc.group(n='{}_HeadAttachGrp'.format(self.prefix), em=1)
-        mc.parent(headAttachGrp, self.rigmodule.controlsGrp)
-        mc.parentConstraint(self.headJnt, headAttachGrp, mo = False)
+        # cv 4
+        mc.parentConstraint(cv4FirstDriver, neckLocators[-1], driverLocatorOffsets[4], mo=True)
+        mc.parentConstraint(cv4FirstDriver, driverLocatorOffsets[4], e=True, w = cv4weight1Value)
+        mc.parentConstraint(neckLocators[-1], driverLocatorOffsets[4], e=True, w = cv4weight2Value)
 
-        '''# Parent head control to neckBase control
-        if self.headParentToNeckBase:
-            mc.parent(headCtr.Off, neckBaseCtr.C)
-        else:
-            mc.parentConstraint( neckBaseAttachGrp, headCtr.Off, mo = 1)'''
 
         # make IK handle
 
-        neckIk = mc.ikHandle(n='{}_ikHandle'.format(self.prefix), sol='ikSplineSolver', sj=ikJoints[0], ee=ikJoints[-1],
-                              c=self.neckCurve, ccv=0, parentCurve=0)[0]
+        neckIk = mc.ikHandle(n='{}_ikHandle'.format(self.prefix), sol='ikSplineSolver', sj = ikNeckJoints[0], ee = ikNeckJoints[-1],
+                              c = self.neckCurve, ccv=0, parentCurve=0)[0]
         mc.hide(neckIk)
         mc.parent(neckIk, self.rigmodule.noXformGrp)
         mc.parent(self.neckCurve, self.rigmodule.noXformGrp)
@@ -317,72 +455,55 @@ class Neck():
         # connect IK spine joints to deformation skeleton
         # Connect deformation joints to ik joints
 
-        constraints = []
-
-        for i in range(len(self.neckJoints)):
-            constraints.append(mc.parentConstraint(ikJoints[i], self.neckJoints[i], mo=0)[0])
-            mc.connectAttr('{}.scale'.format(ikJoints[i]), '{}.scale'.format(self.neckJoints[i]))
 
         # connect head joint to head control
-        headConstraint = mc.orientConstraint(headCtr.C, self.headJnt, mo=1)[0]
-        constraints.append(headConstraint)
-
+        mc.orientConstraint(headCtr.C, ikHeadJoint, mo=1)
 
 
         # make head orient groups
 
-        headOrientGroups = mc.group(n = '{}_headOrientGrps'.format(self.prefix), em = 1)
-        mc.parentConstraint(neckBaseCtr.C, headOrientGroups, mo=0)
-        mc.parent(headOrientGroups, self.rigmodule.partsGrp)
+        neckFollowTargetsGrp = mc.group(n = '{}_FollowTargets'.format(self.prefix), em = 1)
+        mc.parent(neckFollowTargetsGrp, self.rigmodule.partsGrp)
 
-        worldGrp = mc.group(n='{}_globalOrient'.format(self.prefix), em=True)
 
-        globalOrientGrp = mc.group(n='{}_head_globalOrient'.format(self.prefix), em=True)
-        chestOrientGrp = mc.group(n='{}_head_chestOrient'.format(self.prefix), em=True)
-        neckOrientGrp = mc.group(n='{}_head_neckOrient'.format(self.prefix), em=True)
+        globalFollowGrp = mc.group(n='{}_head_globalFollow'.format(self.prefix), em=True)
+        chestFollowGrp = mc.group(n='{}_head_chestFollow'.format(self.prefix), em=True)
 
-        headDriver = mc.group(n='{}_headDriver'.format(self.prefix), em=True)
+        mc.parent(globalFollowGrp, neckFollowTargetsGrp)
+        mc.parent(chestFollowGrp, neckFollowTargetsGrp)
 
-        mc.delete(mc.parentConstraint(headCtr.C, globalOrientGrp, mo=0))
-        mc.delete(mc.parentConstraint(headCtr.C, chestOrientGrp, mo=0))
-        mc.delete(mc.parentConstraint(headCtr.C, neckOrientGrp, mo=0))
-        mc.delete(mc.parentConstraint(headCtr.C, headDriver, mo=0))
+        mc.delete(mc.parentConstraint(neckHybridFKCtr.C, neckFollowTargetsGrp, mo=0))
 
-        mc.parent(globalOrientGrp, headOrientGroups)
-        mc.parent(chestOrientGrp, headOrientGroups)
-        mc.parent(neckOrientGrp, headOrientGroups)
-        mc.parent(headDriver, headOrientGroups)
-
-        mc.orientConstraint(worldGrp, globalOrientGrp, mo=1)
-        mc.orientConstraint(neckBaseCtr.C, neckOrientGrp, mo=1)
-
-        # Parent constrain head control to headDriverGrp
-        mc.parentConstraint(headDriver, headCtr.Off, mo = 1)
+        mc.parentConstraint(self.baseRig.global1Ctrl.C, globalFollowGrp, mo=1)
+        mc.orientConstraint(self.neckBaseAttachGrp, chestFollowGrp, mo=1)
 
 
         # setup head orientation switch
-        attr = "Head_Orient"
-        mc.addAttr(headCtr.C, ln=attr, at='enum', enumName='neck:chest:world', k=1)
-        mc.setAttr('{}.{}'.format(headCtr.C, attr), cb=1)
-        mc.setAttr('{}.{}'.format(headCtr.C, attr), 2)
-        self.HeadOrient = '{}.{}'.format(headCtr.C, attr)
+        follow_attr = "Follow_Chest"
+        #mc.addAttr(headCtr.C, ln=attr, at='enum', enumName='neck:chest:world', k=1)
+        mc.addAttr(headCtr.C, ln = follow_attr, at='double', min=0, max=1, dv=0, k=1)
+        #mc.setAttr('{}.{}'.format(headCtr.C, follow_attr), cb=1)
+        mc.setAttr('{}.{}'.format(headCtr.C, follow_attr), 1)
+        self.HeadFollow = '{}.{}'.format(headCtr.C, follow_attr)
 
         # orient constraint head control
 
-        neckSpaceDriver = neckOrientGrp
+        #neckSpaceDriver = neckOrientGrp
+        #chestSpaceDriver = chestOrientGrp
+        #globalSpaceDriver = globalOrientGrp
 
-        if self.headParentToNeckBase == False:
+        headFollowConstraint = mc.parentConstraint(globalFollowGrp, chestFollowGrp, neckHybridFKCtr.Off, mo=1)[0]
+        mc.setAttr('{}.interpType'.format(headFollowConstraint), 2)
+        weights = mc.parentConstraint(headFollowConstraint, q=1, weightAliasList = 1)
 
-            duplicate = mc.duplicate(chestOrientGrp, n = '{}_double'.format(chestOrientGrp))
-            neckSpaceDriver = duplicate
+        mc.connectAttr('{}.{}'.format(headCtr.C , follow_attr), '{}.{}'.format(headFollowConstraint, weights[1]))
 
-        chestSpaceDriver = chestOrientGrp
-        globalSpaceDriver = globalOrientGrp
+        # Make reverse node
+        reverse = mc.shadingNode('reverse', asUtility=True, n='{}_headFollow_reverse'.format(self.prefix))
+        mc.connectAttr('{}.{}'.format(headCtr.C , follow_attr), '{}.inputX'.format(reverse))
+        mc.connectAttr('{}.outputX'.format(reverse),  '{}.{}'.format(headFollowConstraint, weights[0]))
 
-        headOrientConstraint = mc.orientConstraint(neckSpaceDriver, chestSpaceDriver, globalSpaceDriver, headDriver, mo=1)[0]
-        weights = mc.orientConstraint(headOrientConstraint, q=1, weightAliasList = 1)
-
-        # set driven key for neck orient
+        '''# set driven key for neck orient
         mc.setAttr('{}.{}'.format(headCtr.C, attr), 0)
         mc.setAttr( '{}.{}'.format(headOrientConstraint, weights[0]), 1)
         mc.setAttr('{}.{}'.format(headOrientConstraint, weights[1]), 0)
@@ -404,10 +525,13 @@ class Neck():
         mc.setAttr('{}.{}'.format(headOrientConstraint, weights[1]), 0)
         mc.setAttr('{}.{}'.format(headOrientConstraint, weights[2]), 1)
         for i in range(len(weights)):
-            mc.setDrivenKeyframe('{}.{}'.format(headOrientConstraint, weights[i]), cd='{}.{}'.format(headCtr.C, attr))
+            mc.setDrivenKeyframe('{}.{}'.format(headOrientConstraint, weights[i]), cd='{}.{}'.format(headCtr.C, attr))'''
 
         # set default to follow chest
-        mc.setAttr('{}.{}'.format(headCtr.C, attr), 1)
+        mc.setAttr('{}.{}'.format(headCtr.C, follow_attr),1)
+        
+
+
 
         # set up stretchy neck
 
@@ -441,7 +565,7 @@ class Neck():
         mc.setAttr('{}.color2.color2R'.format(blenderStretch), 1)
 
         # Connect output of stretchRatio with all spine joints scaleY except last
-        for jnt in ikJoints[:-1]:
+        for jnt in ikNeckJoints[:-1]:
             mc.connectAttr('{}.outputR'.format(blenderStretch), '{}.{}'.format(jnt, stretchAxis))
 
         # set up neck squash
@@ -465,27 +589,23 @@ class Neck():
         mc.setAttr('{}.color2.color2B'.format(blenderStretch), 1)
 
         # Connect output X to scale X and Z of spine joints except first and last
-        for jnt in ikJoints[1:-1]:
+        for jnt in ikNeckJoints[1:-1]:
             mc.connectAttr('{}.outputG'.format(blenderStretch), '{}.{}'.format(jnt, squashAxis1))
             mc.connectAttr('{}.outputB'.format(blenderStretch), '{}.{}'.format(jnt, squashAxis2))
 
-        # organize
-        constraintGrp = mc.group(constraints, n='defSkeleton_{}_constraints'.format(self.prefix))
-        mc.parent(constraintGrp, self.baseRig.noXformGrp)
-        mc.parent(neckBaseAttachGrp, self.rigmodule.partsGrp)
-        mc.parent(worldGrp, self.rigmodule.partsGrp)
+
+
 
         # rigParts dictionary
-        self.rigParts['baseAttachGrp'] = neckBaseAttachGrp
         self.rigParts['headCtr'] = headCtr
-        self.rigParts['controls'] = controls
-        self.rigParts['headAttachGrp'] = headAttachGrp
 
+
+        return {'joints': ikJoints, 'controls': controls}
 
     def setInitialValues(self,
                          Stretchy = 1,
-                         HeadOrient = 1 ,
+                         HeadFollow = 1 ,
                          ):
 
         mc.setAttr(self.StretchyAttr, Stretchy)
-        mc.setAttr(self.HeadOrient, HeadOrient)
+        mc.setAttr(self.HeadFollow, HeadFollow)
