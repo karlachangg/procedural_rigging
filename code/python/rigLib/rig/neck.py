@@ -20,7 +20,6 @@ class Neck():
                  forwardAxis = 'x',
                  upAxis = 'y',
                  middleControl = False,
-                 headParentToNeckBase = True,
                  rigScale = 1.0,
                  baseRig = None
                  ):
@@ -45,7 +44,6 @@ class Neck():
         self.forwardAxis = forwardAxis
         self.upAxis = upAxis
         self.middleControl = middleControl
-        self.headParentToNeckBase = headParentToNeckBase
         self.prefix = prefix
         self.rigScale = rigScale
         self.baseRig = baseRig
@@ -186,18 +184,89 @@ class Neck():
         fkJoints.extend(fkNeckJoints)
         fkJoints.append(fkHeadJoint)
 
-        fkNeckControlChain = fkChain.build(joints = fkNeckJoints[:-1], rigScale=self.rigScale * 2, parent = self.rigmodule.controlsGrp,
+        fkNeckControlChain = fkChain.build(joints = fkNeckJoints[:-1], rigScale=self.rigScale, parent = self.rigmodule.controlsGrp,
                                        shape='circleX', lockChannels=['t'], color='cyan')
 
         headFKControl =  control.Control(prefix= 'HeadFK_{}'.format(self.prefix), translateTo=self.headJnt,
-                                        rotateTo = self.headJnt, scale=self.rigScale,
+                                        rotateTo = self.headJnt, scale=self.rigScale * 2,
                                         parent= fkNeckControlChain['controls'][-1].C, shape='circleX',
                                        offsets=['null', 'auto', 'zero'], color = 'cyan')
 
         mc.parentConstraint(headFKControl.C, fkHeadJoint, mo = 1)[0]
 
-        controls = fkNeckControlChain['controls']
+        controls = []
+        controls.extend(fkNeckControlChain['controls'])
         controls.append(headFKControl)
+
+        # Add space switches on head control
+
+        headOrientTargetsGrp = mc.group(n='{}_FKHeadOrientTargets'.format(self.prefix), em=1)
+        mc.parent(headOrientTargetsGrp, self.rigmodule.partsGrp)
+
+        globalOrientGrp = mc.group(n='{}_FKHead_globalFollow'.format(self.prefix), em=True)
+        chestOrientGrp = mc.group(n='{}_FKHead_chestFollow'.format(self.prefix), em=True)
+        neckOrientGrp = mc.group(n='{}_FKHead_neckFollow'.format(self.prefix), em=True)
+
+        mc.parent(globalOrientGrp, headOrientTargetsGrp)
+        mc.parent(chestOrientGrp, headOrientTargetsGrp)
+        mc.parent(neckOrientGrp, headOrientTargetsGrp)
+
+        mc.delete(mc.parentConstraint(headFKControl.C, headOrientTargetsGrp, mo=0))
+        mc.parentConstraint(fkNeckControlChain['controls'][-1].C, headOrientTargetsGrp, mo=0)
+
+        mc.orientConstraint(self.baseRig.global1Ctrl.C, globalOrientGrp, mo=1)
+        mc.orientConstraint(self.neckBaseAttachGrp, chestOrientGrp, mo=1)
+
+        # setup head orientation switch
+        orient_attr = "Head_Orient"
+        mc.addAttr(headFKControl.C, ln=orient_attr, at='enum', enumName='neck:chest:world', k=1)
+        #mc.addAttr(headFKControl.C, ln=orient_attr, at='double', min=0, max=1, dv=0, k=1)
+        mc.setAttr('{}.{}'.format(headFKControl.C, orient_attr), cb=1)
+        #mc.setAttr('{}.{}'.format(headCtr.C, follow_attr), 1)
+        self.HeadFKOrient = '{}.{}'.format(headFKControl.C, orient_attr)
+
+        # orient constraint head control
+
+        neckSpaceDriver = neckOrientGrp
+        chestSpaceDriver = chestOrientGrp
+        globalSpaceDriver = globalOrientGrp
+
+        headOrientConstraint = mc.orientConstraint(neckSpaceDriver, chestSpaceDriver, globalSpaceDriver, headFKControl.Off, mo=1)[0]
+        mc.setAttr('{}.interpType'.format(headOrientConstraint), 2)
+        weights = mc.orientConstraint(headOrientConstraint, q=1, weightAliasList=1)
+
+        #mc.connectAttr('{}.{}'.format(headFKControl.C, orient_attr), '{}.{}'.format(headOrientConstraint, weights[1]))
+
+
+        # set driven key for neck orient
+        mc.setAttr('{}.{}'.format(headFKControl.C, orient_attr), 0)
+        mc.setAttr( '{}.{}'.format(headOrientConstraint, weights[0]), 1)
+        mc.setAttr('{}.{}'.format(headOrientConstraint, weights[1]), 0)
+        mc.setAttr('{}.{}'.format(headOrientConstraint, weights[2]), 0)
+        for i in range(len(weights)):
+            mc.setDrivenKeyframe('{}.{}'.format(headOrientConstraint, weights[i]), cd='{}.{}'.format(headFKControl.C, orient_attr))
+
+        # set driven key for chest orient
+        mc.setAttr('{}.{}'.format(headFKControl.C, orient_attr), 1)
+        mc.setAttr('{}.{}'.format(headOrientConstraint, weights[0]), 0)
+        mc.setAttr('{}.{}'.format(headOrientConstraint, weights[1]), 1)
+        mc.setAttr('{}.{}'.format(headOrientConstraint, weights[2]), 0)
+        for i in range(len(weights)):
+            mc.setDrivenKeyframe('{}.{}'.format(headOrientConstraint, weights[i]), cd = '{}.{}'.format(headFKControl.C, orient_attr))
+
+        # set driven key for global orient
+        mc.setAttr('{}.{}'.format(headFKControl.C, orient_attr), 2)
+        mc.setAttr('{}.{}'.format(headOrientConstraint, weights[0]), 0)
+        mc.setAttr('{}.{}'.format(headOrientConstraint, weights[1]), 0)
+        mc.setAttr('{}.{}'.format(headOrientConstraint, weights[2]), 1)
+        for i in range(len(weights)):
+            mc.setDrivenKeyframe('{}.{}'.format(headOrientConstraint, weights[i]), cd='{}.{}'.format(headFKControl.C, orient_attr))
+
+        # set default to follow neck
+        mc.setAttr('{}.{}'.format(headFKControl.C, orient_attr), 0)
+
+
+
 
         return {'joints': fkJoints, 'controls': controls}
 
@@ -475,7 +544,7 @@ class Neck():
         mc.delete(mc.parentConstraint(neckHybridFKCtr.C, neckFollowTargetsGrp, mo=0))
 
         mc.parentConstraint(self.baseRig.global1Ctrl.C, globalFollowGrp, mo=1)
-        mc.orientConstraint(self.neckBaseAttachGrp, chestFollowGrp, mo=1)
+        mc.parentConstraint(self.neckBaseAttachGrp, chestFollowGrp, mo=1)
 
 
         # setup head orientation switch
@@ -605,7 +674,9 @@ class Neck():
     def setInitialValues(self,
                          Stretchy = 1,
                          HeadFollow = 1 ,
+                         HeadFKOrient = 0
                          ):
 
         mc.setAttr(self.StretchyAttr, Stretchy)
         mc.setAttr(self.HeadFollow, HeadFollow)
+        mc.setAttr(self.HeadFKOrient, HeadFKOrient)

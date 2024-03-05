@@ -88,14 +88,13 @@ class Tortoise(char.Character):
             forwardAxis = 'x',
             upAxis = 'y',
             middleControl = True,
-            headParentToNeckBase= False,
             rigScale = self.sceneScale,
             baseRig = baseRig
         )
         self.neckRig.build()
 
 
-        # Make a control for the neck base
+        # Make an extra control for the neck base
 
         neckBaseCtr = control.Control(prefix='NeckBase', translateTo=neckBaseJnt, rotateTo=neckBaseJnt,
                                       scale=self.sceneScale * 4, shape='circleX', parent = self.neckRig.rigmodule.controlsGrp)
@@ -244,12 +243,12 @@ class Tortoise(char.Character):
             innerLoc=innerLoc,
             outerLoc=outerLoc,
 
-            fkAnkleJoint=self.leftArmRig.rigParts['fkJoints'][-1],
-            ikAnkleJoint=self.leftArmRig.rigParts['ikJoints'][-1],
-            fkFootCtr=self.leftArmRig.rigParts['fkControls'][-1],
+            fkParentJoint=self.leftArmRig.rigParts['fkJoints'][-1],
+            ikParentJoint=self.leftArmRig.rigParts['ikJoints'][-1],
 
-            ikFootCtr=self.leftArmRig.rigParts['ikControl'],
-            ikParentCtr=self.leftArmRig.rigParts['ikGimbalControl'],
+            fkFootCtr = self.leftArmRig.rigParts['fkControls'][-1],
+            ikFootCtr = self.leftArmRig.rigParts['ikControl'],
+            reverseFootParent = self.leftArmRig.rigParts['ikGimbalControl'].C,
             switchAttr=self.leftArmRig.rigParts['FKIKSwitchAttr'],
 
             ikGroupToDrive=self.leftArmRig.rigParts['reverseFootDriven'],
@@ -273,12 +272,12 @@ class Tortoise(char.Character):
             innerLoc=innerLoc,
             outerLoc=outerLoc,
 
-            fkAnkleJoint=self.rightArmRig.rigParts['fkJoints'][-1],
-            ikAnkleJoint=self.rightArmRig.rigParts['ikJoints'][-1],
-            fkFootCtr=self.rightArmRig.rigParts['fkControls'][-1],
+            fkParentJoint=self.rightArmRig.rigParts['fkJoints'][-1],
+            ikParentJoint=self.rightArmRig.rigParts['ikJoints'][-1],
 
+            fkFootCtr=self.rightArmRig.rigParts['fkControls'][-1],
             ikFootCtr=self.rightArmRig.rigParts['ikControl'],
-            ikParentCtr=self.rightArmRig.rigParts['ikGimbalControl'],
+            reverseFootParent=self.rightArmRig.rigParts['ikGimbalControl'].C,
             switchAttr=self.rightArmRig.rigParts['FKIKSwitchAttr'],
 
             ikGroupToDrive=self.rightArmRig.rigParts['reverseFootDriven'],
@@ -309,12 +308,12 @@ class Tortoise(char.Character):
             innerLoc=backInnerLoc,
             outerLoc=backOuterLoc,
 
-            fkAnkleJoint=self.leftLegRig.rigParts['fkJoints'][-1],
-            ikAnkleJoint=self.leftLegRig.rigParts['ikJoints'][-1],
+            fkParentJoint=self.leftLegRig.rigParts['fkJoints'][-1],
+            ikParentJoint=self.leftLegRig.rigParts['ikJoints'][-1],
             fkFootCtr=self.leftLegRig.rigParts['fkControls'][-1],
 
             ikFootCtr=self.leftLegRig.rigParts['ikControl'],
-            ikParentCtr=self.leftLegRig.rigParts['ikGimbalControl'],
+            reverseFootParent=self.leftLegRig.rigParts['ikGimbalControl'].C,
             switchAttr=self.leftLegRig.rigParts['FKIKSwitchAttr'],
 
             ikGroupToDrive=self.leftLegRig.rigParts['reverseFootDriven'],
@@ -337,12 +336,12 @@ class Tortoise(char.Character):
             innerLoc=backInnerLoc,
             outerLoc=backOuterLoc,
 
-            fkAnkleJoint=self.rightLegRig.rigParts['fkJoints'][-1],
-            ikAnkleJoint=self.rightLegRig.rigParts['ikJoints'][-1],
+            fkParentJoint=self.rightLegRig.rigParts['fkJoints'][-1],
+            ikParentJoint=self.rightLegRig.rigParts['ikJoints'][-1],
             fkFootCtr=self.rightLegRig.rigParts['fkControls'][-1],
 
             ikFootCtr=self.rightLegRig.rigParts['ikControl'],
-            ikParentCtr=self.rightLegRig.rigParts['ikGimbalControl'],
+            reverseFootParent=self.rightLegRig.rigParts['ikGimbalControl'].C,
             switchAttr=self.rightLegRig.rigParts['FKIKSwitchAttr'],
 
             ikGroupToDrive=self.rightLegRig.rigParts['reverseFootDriven'],
@@ -654,17 +653,17 @@ class Tortoise(char.Character):
     def adjustControlShapes(self):
 
         # adjust neck base ik control
-        control._translateCtrlShape(self.neckRig.rigParts['controls'][0], axis='z', value=8)
-        control._translateCtrlShape(self.neckRig.rigParts['controls'][0], axis='y', value=3)
-        control._scaleCtrlShape(self.neckRig.rigParts['controls'][0], axis='x,y,z', value=.5)
+        control._translateCtrlShape(self.neckRig.rigParts['ikControls'][0], axis='z', value=8)
+        control._translateCtrlShape(self.neckRig.rigParts['ikControls'][0], axis='y', value=3)
+        control._scaleCtrlShape(self.neckRig.rigParts['ikControls'][0], axis='x,y,z', value=.5)
         # middle control
-        control._scaleCtrlShape(self.neckRig.rigParts['controls'][2], axis='x,y,z', value=.7)
-        control._translateCtrlShape(self.neckRig.rigParts['controls'][2], axis='y', value=-2)
-        control._translateCtrlShape(self.neckRig.rigParts['controls'][2], axis='z', value=1)
+        control._scaleCtrlShape(self.neckRig.rigParts['ikControls'][-1], axis='x,y,z', value=.7)
+        control._translateCtrlShape(self.neckRig.rigParts['ikControls'][-1], axis='y', value=-2)
+        control._translateCtrlShape(self.neckRig.rigParts['ikControls'][-1], axis='z', value=1)
         # head control
-        control._scaleCtrlShape(self.neckRig.rigParts['controls'][1], axis='x,y,z', value=1.2)
-        control._translateCtrlShape(self.neckRig.rigParts['controls'][1], axis='y', value=1.25)
-        control._translateCtrlShape(self.neckRig.rigParts['controls'][1], axis='z', value=-2.63)
+        control._scaleCtrlShape(self.neckRig.rigParts['ikControls'][2], axis='x,y,z', value=1.2)
+        control._translateCtrlShape(self.neckRig.rigParts['ikControls'][2], axis='y', value=1.25)
+        control._translateCtrlShape(self.neckRig.rigParts['ikControls'][2], axis='z', value=-2.63)
 
 
 
@@ -851,7 +850,7 @@ class Tortoise(char.Character):
 
         mc.setAttr('{}.{}'.format(self.baseRig.mainCtrl.C, 'jointsVis'), 0)
 
-        self.neckRig.setInitialValues(HeadOrient=1, Stretchy=1)
+        self.neckRig.setInitialValues( Stretchy=1)
 
 
 

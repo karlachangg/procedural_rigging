@@ -281,10 +281,15 @@ class Biped(char.Character):
     def adjustControlShapes(self):
 
         # head control
-        control._translateCtrlShape(self.neckRig.rigParts['controls'][1], axis='y', value=0.613)
-        control._translateCtrlShape(self.neckRig.rigParts['controls'][1], axis='z', value= 0.292)
+        control._translateCtrlShape(self.neckRig.rigParts['ikControls'][2], axis='y', value=0.613)
+        control._translateCtrlShape(self.neckRig.rigParts['ikControls'][2], axis='z', value= 0.292)
         # neck control
-        control._scaleCtrlShape(self.neckRig.rigParts['controls'][0], axis='x, y, z', value=0.75)
+        control._scaleCtrlShape(self.neckRig.rigParts['ikControls'][0], axis='x, y, z', value=0.75)
+        control._scaleCtrlShape(self.neckRig.rigParts['ikControls'][1], axis='x, y, z', value=0.5)
+
+        for ctr in self.neckRig.rigParts['fkControls'][:-1]:
+            control._scaleCtrlShape(ctr, axis='x, y, z', value= 0.5)
+
 
         # Spine
         # hip IK
