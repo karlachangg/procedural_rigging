@@ -5,7 +5,7 @@ main module
 
 from rigLib.base import control
 from rigLib.base import module
-
+from rigTools import controlCurves
 from . import project
 from . import char_deform
 import maya.cmds as mc
@@ -21,6 +21,7 @@ class Character:
         self.modelFilePath = '%s/%s/' + project.modelDir + '/%s_model.mb'
         self.jointFilePath = '%s/%s/' + project.rigBuildDir +'/%s_skeleton.mb'
         self.wiresFilePath = '%s/%s/' + project.rigBuildDir +'/%s_wires.mb'
+        self.controlShapesPath = '%s/%s/' + project.rigBuildDir +'/%s_controlShapes.json'
         self.baseRig = module.Base(characterName = self.characterName, scale = self.sceneScale )
         self.skeletonGrp = 'skeleton_grp'
 
@@ -77,3 +78,14 @@ class Character:
             mc.setAttr('{}.segmentScaleCompensate'.format(joint), 1)
 
 
+    def saveControlShapes(self):
+
+        controlShapesFilepath = self.controlShapesPath % (self.projectPath, self.characterName, self.characterName)
+        controlCurves.ExportCurves(controlShapesFilepath)
+
+    def loadControlShapes(self):
+
+        controlShapesFilepath = self.controlShapesPath % (self.projectPath, self.characterName, self.characterName)
+
+        if os.path.isfile(controlShapesFilepath):
+            controlCurves.ImportCurves(controlShapesFilepath)

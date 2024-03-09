@@ -36,6 +36,7 @@ class Dog(char.Character):
         self.buildRig(self.baseRig)
         self.buildExtraControls(self.baseRig)
         self.deform()
+        self.loadControlShapes()
         #self.setInitialPose()
 
     def buildRig(self, baseRig):
@@ -418,12 +419,12 @@ class Dog(char.Character):
             rightEarJoints.append(rightJoint)
 
         leftEarRig = fkChain.build(leftEarJoints, rigScale=self.sceneScale,
-                                     parent= head_rigmodule.controlsGrp,
+                                     parent= head_rigmodule.controlsGrp, endControl= False,
                                      offsets=['null', 'zero', 'auto'])
 
         # Right ear
         rightEarRig = fkChain.build(rightEarJoints, rigScale=self.sceneScale,
-                                       parent = head_rigmodule.controlsGrp,
+                                       parent = head_rigmodule.controlsGrp, endControl= False,
                                        offsets=['null', 'zero', 'auto'])
 
 

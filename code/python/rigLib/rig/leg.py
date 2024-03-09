@@ -102,7 +102,7 @@ class Leg():
 
         # Make switch control
 
-        switchCtr = control.Control(prefix='{}_FKIK'.format(self.prefix), translateTo= self.legJoints[1],
+        switchCtr = control.Control(prefix='{}_FKIK'.format(self.prefix), translateTo= self.legJoints[1], lockChannels=['t', 'r', 's', 'v'],
                                  scale=self.rigScale * 0.5, parent=self.rigmodule.controlsGrp, shape='plus', color = 'green')
         switch_attr = 'FKIK_Switch'
         mc.addAttr(switchCtr.C, ln = switch_attr, at= 'double', min = 0, max = 1, dv = 0, k = 1)
@@ -319,7 +319,7 @@ class Leg():
         legCtr = control.Control(prefix='{}_leg_ik'.format(self.prefix), translateTo=ikJoints[2],
                                   scale=self.rigScale, parent = self.rigmodule.controlsGrp, shape='cube')
         poleVectorCtr = control.Control(prefix='{}_leg_pv'.format(self.prefix), translateTo=ikJoints[1], rotateTo = ikJoints[2],
-                                 scale=self.rigScale * 0.5, parent = self.rigmodule.controlsGrp, shape='locator')
+                                 scale=self.rigScale * 0.5, parent = self.rigmodule.controlsGrp, shape='orb')
 
         controls = [legCtr, poleVectorCtr]
 

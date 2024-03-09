@@ -3,9 +3,13 @@
   <component name="ChangeListManager">
     <list default="true" id="73c9d649-9df9-4930-a027-20ca9818176a" name="Default Changelist" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/charRig/biped.py" beforeDir="false" afterPath="$PROJECT_DIR$/charRig/biped.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/charRig/tortoise.py" beforeDir="false" afterPath="$PROJECT_DIR$/charRig/tortoise.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/rigLib/rig/neck.py" beforeDir="false" afterPath="$PROJECT_DIR$/rigLib/rig/neck.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/charRig/char.py" beforeDir="false" afterPath="$PROJECT_DIR$/charRig/char.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/charRig/dog.py" beforeDir="false" afterPath="$PROJECT_DIR$/charRig/dog.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/rigLib/base/control.py" beforeDir="false" afterPath="$PROJECT_DIR$/rigLib/base/control.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/rigLib/rig/fkChain.py" beforeDir="false" afterPath="$PROJECT_DIR$/rigLib/rig/fkChain.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/rigLib/rig/leg.py" beforeDir="false" afterPath="$PROJECT_DIR$/rigLib/rig/leg.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/rigLib/rig/limb.py" beforeDir="false" afterPath="$PROJECT_DIR$/rigLib/rig/limb.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/rigTools/__init__.py" beforeDir="false" afterPath="$PROJECT_DIR$/rigTools/__init__.py" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />

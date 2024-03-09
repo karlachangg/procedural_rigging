@@ -19,7 +19,8 @@ def build(
         smallestScalePercent = 1.0,
         lockChannels = ['s', 'v'],
         offsets = ['null'],
-        color = ''
+        color = '',
+        endControl = True,
         ):
 
     """
@@ -28,11 +29,17 @@ def build(
     :param fkParenting: bool, parent each control to the previous one to make an FK chain. Default True
     :param parent: str, name of object to parent controls or control chain to
     :param shape: str, shape of controls
+    :param color: str, color of controls
     :param smallestScalePercent: float, set to the smallest control size if you want controls that get smaller
     :param shape: list (str), channels to lock on controls
     :param offsets: str, offset groups on controls
+    :param endControl: bool, option to create a control at the last joint in joints list
+
     :return: list of FK controls created
     """
+
+    if not endControl:
+        joints = joints[:-1]
 
     chainControls = []
     controlScaleIncrement = (1.0 - smallestScalePercent) / len(joints)

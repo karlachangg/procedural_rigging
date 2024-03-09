@@ -576,6 +576,7 @@ class Limb():
                                   rotateTo = self.scapulaJoint, scale=self.rigScale, parent=self.rigmodule.controlsGrp,
                                   shape = 'quadArrow', offsets= ['null', 'zero', 'auto'])
 
+
         self.rigParts['scapulaControls'] = [scapCtr]
 
         mc.parentConstraint(bodyAttachGrp, scapCtr.Off, mo=1)

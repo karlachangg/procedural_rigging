@@ -20,7 +20,8 @@ class Control():
 				shape = 'circle',
 				lockChannels = ['s', 'v'],
 				offsets = ['null'],
-				color = ''
+				color = '',
+				normal = 'x'
 				):
 
 		"""
@@ -35,6 +36,7 @@ class Control():
 		"""
 		ctrlObject = None
 		circleNormal = [1, 0, 0]
+
 		
 		if shape in ['circle', 'circleX']:
 
@@ -78,6 +80,8 @@ class Control():
 
 		elif shape == 'quadArrow':
 			ctrlObject = create_quad_arrow(prefix)
+			if normal == 'x':
+				mc.xform(ctrlObject, ro = (90, 0, 0))
 
 		elif shape == 'plus':
 			ctrlObject = create_plus(prefix)
@@ -94,7 +98,11 @@ class Control():
 		
 
 		mc.xform( ctrlObject, s = (scale, scale, scale) )
+
 		mc.makeIdentity( ctrlObject, apply=True )
+
+		# Tag control object as a controller, we will use this to identify control curves in the scene
+		mc.controller(ctrlObject)
 
 		offsetGrps = []
 
@@ -351,6 +359,7 @@ def create_quad_arrow(prefix):
 					   n = prefix + '_CTR')
 	mc.xform(cp=True)
 	mc.scale(.2,.2,.2)
+
 	mc.makeIdentity(apply=True, t=True, r=True, s=True)
 
 	return control
