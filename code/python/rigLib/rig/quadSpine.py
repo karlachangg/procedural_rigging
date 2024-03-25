@@ -100,7 +100,7 @@ class QuadSpine():
 
         # Make switch control
 
-        switchCtr = control.Control(prefix='{}_FKIK'.format(self.prefix), translateTo=self.spineJoints[0],
+        switchCtr = control.Control(prefix='{}_FKIK'.format(self.prefix), translateTo=self.spineJoints[0], lockChannels= ['t', 'r', 's', 'v'],
                                     scale=self.rigScale * 0.5, parent=self.rigmodule.controlsGrp, shape='plus', color = 'yellow')
         switch_attr = 'FKIK_Switch'
         mc.addAttr(switchCtr.C, ln=switch_attr, at='double', min=0, max=1, dv=0, k=1)
@@ -112,6 +112,9 @@ class QuadSpine():
 
         # Define rigParts properties
         self.rigParts['switchControl'] = switchCtr
+
+        # Create class member so we can access later
+        self.FKIKAttr = '{}.{}'.format(switchCtr.C, switch_attr)
 
         # make reverse node
         reverse = mc.shadingNode('reverse', asUtility=True, n='{}_leg_switch_reverse'.format(self.prefix))
@@ -480,8 +483,8 @@ class QuadSpine():
         mc.setAttr( '{}.color2.color2R'.format(blenderStretch), 1)
 
 
-        # Connect output of stretchRatio with all spine joints scaleX except last
-        for jnt in ikSpineJoints[:-1]:
+        # Connect output of stretchRatio with all spine joints scaleX except last two
+        for jnt in ikSpineJoints[:-2]:
             mc.connectAttr('{}.outputR'.format(blenderStretch), '{}.{}'.format(jnt, stretchAxis))
 
         # set up spine squash
@@ -510,6 +513,20 @@ class QuadSpine():
             mc.connectAttr('{}.outputG'.format(blenderStretch), '{}.{}'.format(jnt, squashAxis1))
             mc.connectAttr('{}.outputB'.format(blenderStretch), '{}.{}'.format(jnt, squashAxis2))
 
+        # Make locator to hold chest joint position
+        chestLocator = mc.spaceLocator(n = '{}_chestPosition'.format(self.prefix))[0]
+        mc.delete(mc.parentConstraint(ik_chest_jnt, chestLocator, mo = 0))
+        mc.parent(chestLocator, ikSpineJoints[-1])
+
+        # Make chest joint follow chest control position when stretchy, and chest locator when not
+        chest_pConstraint = mc.pointConstraint(chestCtrlIK.C, chestLocator, ik_chest_jnt, mo = 1)[0]
+        chestWeights = mc.pointConstraint(chest_pConstraint, q=1, weightAliasList=1)
+        mc.connectAttr(self.StretchyAttr, '{}.{}'.format(chest_pConstraint, chestWeights[0]))
+        reverse = mc.shadingNode('reverse', asUtility=True, n='{}_chest_pointconstraint_reverse'.format(self.prefix))
+        mc.connectAttr(self.StretchyAttr, '{}.inputX'.format(reverse))
+        mc.connectAttr('{}.outputX'.format(reverse), '{}.{}'.format(chest_pConstraint, chestWeights[1]))
+
+
 
         # attach chest and root joints
         chestConstraint = mc.orientConstraint(chestCtrlIK.C, ik_chest_jnt, mo=1)[0]
@@ -520,7 +537,9 @@ class QuadSpine():
         return { 'joints': ikJoints, 'controls': controls, 'root': ik_root_jnt, 'chest': ik_chest_jnt }
 
     def setInitialValues(self,
+                         FKIKMode = 1,
                          Stretchy = 1,
-                         ):
 
+                         ):
+        mc.setAttr(self.FKIKAttr, FKIKMode)
         mc.setAttr(self.StretchyAttr, Stretchy)

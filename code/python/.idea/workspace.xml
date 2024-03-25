@@ -5,11 +5,12 @@
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/charRig/char.py" beforeDir="false" afterPath="$PROJECT_DIR$/charRig/char.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/charRig/dog.py" beforeDir="false" afterPath="$PROJECT_DIR$/charRig/dog.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/rigLib/base/control.py" beforeDir="false" afterPath="$PROJECT_DIR$/rigLib/base/control.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/rigLib/rig/fkChain.py" beforeDir="false" afterPath="$PROJECT_DIR$/rigLib/rig/fkChain.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/rigLib/rig/leg.py" beforeDir="false" afterPath="$PROJECT_DIR$/rigLib/rig/leg.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/rigLib/rig/foot.py" beforeDir="false" afterPath="$PROJECT_DIR$/rigLib/rig/foot.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/rigLib/rig/limb.py" beforeDir="false" afterPath="$PROJECT_DIR$/rigLib/rig/limb.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/rigTools/__init__.py" beforeDir="false" afterPath="$PROJECT_DIR$/rigTools/__init__.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/rigLib/rig/neck.py" beforeDir="false" afterPath="$PROJECT_DIR$/rigLib/rig/neck.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/rigLib/rig/quadSpine.py" beforeDir="false" afterPath="$PROJECT_DIR$/rigLib/rig/quadSpine.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/rigLib/rig/spine.py" beforeDir="false" afterPath="$PROJECT_DIR$/rigLib/rig/spine.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/rigLib/rig/tail.py" beforeDir="false" afterPath="$PROJECT_DIR$/rigLib/rig/tail.py" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />

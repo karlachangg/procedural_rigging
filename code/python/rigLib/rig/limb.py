@@ -119,7 +119,7 @@ class Limb():
         # Make switch control
 
         self.switchCtr = control.Control(prefix='{}_FKIK'.format(self.prefix), translateTo = self.limbJoints[1],
-                                         color='green',
+                                         color='green', lockChannels= ['t', 'r', 's', 'v'],
                                          scale=self.rigScale * 0.5, parent=self.rigmodule.controlsGrp, shape='plus')
         switch_attr = 'FKIK_Switch'
         control._rotateCtrlShape(self.switchCtr, axis='x', value=90)
@@ -631,25 +631,47 @@ class Limb():
         weights = mc.orientConstraint(oconstraint, q=1, weightAliasList=1)
         mc.setAttr('{}.interpType'.format(oconstraint), 2)
 
-        # Create attribute to drive scapula aim
-        scap_aim_attr = 'Scapula_Aim'
-        mc.addAttr(ikControl, ln = scap_aim_attr, at='double', min=0, max=1, dv=0, k=1)
 
-        # Create remap node
+        # Create remap node for aim
         remap = mc.shadingNode('remapValue', asUtility=True, n='{}_scapAim_remap'.format(self.prefix))
-        mc.connectAttr('{}.{}'.format(ikControl, scap_aim_attr), '{}.inputValue'.format(remap))
+        mc.connectAttr(self.ScapAimAttr, '{}.inputValue'.format(remap))
         mc.setAttr( '{}.inputMax'.format(remap), 1)
         mc.setAttr('{}.inputMin'.format(remap), 0)
         mc.setAttr('{}.outputMax'.format(remap), 0.5)
         mc.setAttr('{}.outputMin'.format(remap), 0)
+        #mc.connectAttr('{}.outValue'.format(remap), '{}.{}'.format(oconstraint, weights[0]))
 
+        # Create reverse node for no aim
 
-        mc.connectAttr('{}.outValue'.format(remap), '{}.{}'.format(oconstraint, weights[0]))
         reverse = mc.shadingNode('reverse', asUtility=True, n='{}_scapAim_reverse'.format(self.prefix))
-        mc.connectAttr('{}.{}'.format(ikControl, scap_aim_attr), '{}.inputX'.format(reverse))
-        mc.connectAttr('{}.outputX'.format(reverse), '{}.{}'.format(oconstraint, weights[1]))
-        mc.parent(oconstraint, self.rigmodule.noXformGrp)
-        mc.setAttr('{}.{}'.format(ikControl, scap_aim_attr), 1.0)
+        mc.connectAttr(self.ScapAimAttr, '{}.inputX'.format(reverse))
+        #mc.connectAttr('{}.outputX'.format(reverse), '{}.{}'.format(oconstraint, weights[1]))
+        #mc.parent(oconstraint, self.rigmodule.noXformGrp)
+        mc.setAttr(self.ScapAimAttr, 1.0)
+
+
+        # Create blender for "aim" weight between IK/FK values
+        blenderScapAim = mc.shadingNode('blendTwoAttr', asUtility=True, n='{}_blenderScapAimWeight'.format(self.prefix))
+        mc.connectAttr(self.FKIKAttr, '{}.attributesBlender'.format(blenderScapAim))
+        # Set blender input 0 to desired FK value
+        mc.setAttr('{}.input[0]'.format(blenderScapAim), 0)
+        # Set blender input 1 to desired IK value
+        mc.connectAttr('{}.outValue'.format(remap), '{}.input[1]'.format(blenderScapAim))
+        # Connect blender out value to scap orient constraint "Aim" weight
+        mc.connectAttr('{}.output'.format(blenderScapAim), '{}.{}'.format(oconstraint, weights[0]))
+
+        # Create blender for "no aim" weight between IK/FK values
+        blenderScapNoAim = mc.shadingNode('blendTwoAttr', asUtility=True, n='{}_blenderScapNoAimWeight'.format(self.prefix))
+        mc.connectAttr(self.FKIKAttr, '{}.attributesBlender'.format(blenderScapNoAim))
+        # Set blender input 0 to desired FK value
+        mc.setAttr('{}.input[0]'.format(blenderScapNoAim), 1)
+        # Set blender input 1 to desired IK value
+        mc.connectAttr('{}.outputX'.format(reverse), '{}.input[1]'.format(blenderScapNoAim))
+        # Connect blender out value to scap orient constraint "Aim" weight
+        mc.connectAttr('{}.output'.format(blenderScapNoAim), '{}.{}'.format(oconstraint, weights[1]))
+
+
+
 
 
         # connect scapula joint to control
@@ -702,6 +724,32 @@ class Limb():
 
         self.rigParts['ikControl'] = armCtr
         self.rigParts['ikGimbalControl'] = wristGimbalCtr
+
+        # Add custom attributes
+
+        # Create blender for stretchy arm setup
+        stretch_attr = 'Stretchy'
+        mc.addAttr(armCtr.C, ln=stretch_attr, at='double', min=0, max=1, dv=0, k=1)
+        spin_attr = 'Spin'
+        mc.addAttr(armCtr.C, ln=spin_attr, at='double', dv=0, k=1)
+
+
+        if self.scapulaJoint:
+            # Create attribute to drive scapula aim
+            scap_aim_attr = 'Scapula_Aim'
+            mc.addAttr(armCtr.C, ln=scap_aim_attr, at='double', min=0, max=1, dv=0, k=1)
+            self.ScapAimAttr = '{}.{}'.format(armCtr.C, scap_aim_attr)
+
+        leg_aim_attr = 'Leg_Aim'
+        mc.addAttr(armCtr.C, ln=leg_aim_attr, at='double', min=0, max=1, dv=0, k=1)
+
+        length1_attr = 'Length1'
+        length2_attr = 'Length2'
+        mc.addAttr(armCtr.C, ln=length1_attr, at='double', min=1, dv=1, k=1)
+        mc.addAttr(armCtr.C, ln=length2_attr, at='double', min=1, dv=1, k=1)
+
+        # Create class member so we can access later
+        self.StretchyAttr = '{}.{}'.format(armCtr.C, stretch_attr)
 
         # Body attach group moves the base of the ik limb. Is used to attach to a scaupla rig or spine rig later
         bodyAttachGrp = mc.group(n='{}_ikBodyAttachGrp'.format(self.prefix), em=1, p=self.rigmodule.partsGrp)
@@ -784,8 +832,6 @@ class Limb():
         mc.setAttr('{}.interpType'.format(ikRotateGrp_oConstraint), 2)
 
         # Set up leg aim attribute
-        leg_aim_attr = 'Leg_Aim'
-        mc.addAttr(armCtr.C, ln = leg_aim_attr, at='double', min=0, max=1, dv=0, k=1)
         mc.connectAttr('{}.{}'.format(armCtr.C, leg_aim_attr), '{}.{}'.format(ikRotateGrp_oConstraint, weights[0]))
         reverse_LegAim = mc.shadingNode('reverse', asUtility=True, n='{}_legAim_reverse'.format(self.prefix))
         mc.connectAttr('{}.{}'.format(armCtr.C, leg_aim_attr), '{}.inputX'.format(reverse_LegAim))
@@ -860,8 +906,6 @@ class Limb():
 
         # Add spin attribute
 
-        spin_attr = 'Spin'
-        mc.addAttr(armCtr.C, ln=spin_attr, at='double', dv=0, k=1)
 
         self.elbowSpinAxis = self.forwardAxis
 
@@ -956,21 +1000,9 @@ class Limb():
         # Calculate the length of fully extended arm
         limbLength = upperBone_length + middleBone_length
 
-        # Create blender for stretchy arm setup
-        stretch_attr = 'Stretchy'
-        mc.addAttr(armCtr.C, ln=stretch_attr, at='double', min=0, max=1, dv=0, k=1)
 
-        # Create class member so we can access later
-        self.StretchyAttr = '{}.{}'.format(armCtr.C, stretch_attr)
 
         # Make length attributes
-        length1_attr = 'Length1'
-        length2_attr = 'Length2'
-        length3_attr = 'Length3'
-
-        mc.addAttr(armCtr.C, ln=length1_attr, at='double', min=1, dv=1, k=1)
-        mc.addAttr(armCtr.C, ln=length2_attr, at='double', min=1, dv=1, k=1)
-        mc.addAttr(armCtr.C, ln=length3_attr, at='double', min=1, dv=1, k=1)
 
         if '-' in self.forwardAxis:
             fAxisDirection = 0
@@ -992,14 +1024,7 @@ class Limb():
                                           stretchDriver = sdkDriver,
                                           forwardAxisPositive = fAxisDirection
                                           )
-        '''
-        blenderStretchLower = boneStretch(prefix='{}_bone3'.format(self.prefix),
-                                           totalLimbLength=limbLength,
-                                           lengthAttr = '{}.{}'.format(armCtr.C, length3_attr),
-                                           stretchAttr=self.StretchyAttr,
-                                           stretchDriver=sdkDriver,
-                                           forwardAxisPositive=fAxisDirection
-                                           )'''
+
 
         # make elbow pin to pv setup
         pv_pin_attr = 'Pin'
@@ -1025,22 +1050,15 @@ class Limb():
                                         forwardAxisPositive=fAxisDirection
                                         )
 
-        # Make a pin/no pin blender for the last bone that just has a value of 1
-
-        '''blenderPinLower = mc.shadingNode('blendTwoAttr', asUtility=True, n='{}_bone3_blenderPin'.format(self.prefix))
-        mc.connectAttr('{}.{}'.format(poleVectorCtr.C, pv_pin_attr), '{}.attributesBlender'.format(blenderPinLower))
-        mc.setAttr('{}.input[1]'.format(blenderPinLower), 1.0)'''
 
 
         # connect stretch/no stretch blender output to pin/noPin blender input
         mc.connectAttr('{}.output'.format(blenderStretchUpper), '{}.input[0]'.format(blenderPinUpper))
         mc.connectAttr('{}.output'.format(blenderStretchMiddle), '{}.input[0]'.format(blenderPinMiddle))
-        #mc.connectAttr('{}.output'.format(blenderStretchLower), '{}.input[0]'.format(blenderPinLower))
 
         # connect blender outputs to ik joints' scale
         mc.connectAttr('{}.output'.format(blenderPinUpper), '{}.{}'.format(ikJoints[0], scaleAxisAttr))
         mc.connectAttr('{}.output'.format(blenderPinMiddle), '{}.{}'.format(ikJoints[1], scaleAxisAttr))
-        #mc.connectAttr('{}.output'.format(blenderPinLower), '{}.{}'.format(ikJoints[2], scaleAxisAttr))
 
 
 

@@ -89,3 +89,9 @@ class Character:
 
         if os.path.isfile(controlShapesFilepath):
             controlCurves.ImportCurves(controlShapesFilepath)
+
+    def delivery(self):
+
+        mc.setAttr('{}.{}'.format(self.baseRig.mainCtrl.C, 'jointsVis'), 0)
+        mc.setAttr('{}.{}'.format(self.baseRig.mainCtrl.C, 'modelDisp'), 2)
+        mc.setAttr('{}.{}'.format(self.baseRig.mainCtrl.C, 'jointsDisp'), 2)

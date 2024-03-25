@@ -109,7 +109,7 @@ class Spine():
 
         # Make switch control
 
-        switchCtr = control.Control(prefix='{}_FKIK'.format(self.prefix), translateTo=self.spineJoints[0],
+        switchCtr = control.Control(prefix='{}_FKIK'.format(self.prefix), translateTo=self.spineJoints[0], lockChannels= ['t', 'r', 's', 'v'],
                                     scale=self.rigScale * 0.5, parent=self.rigmodule.controlsGrp, shape='plus', color = 'yellow')
         switch_attr = 'FKIK_Switch'
         mc.addAttr(switchCtr.C, ln=switch_attr, at='double', min=0, max=1, dv=0, k=1)

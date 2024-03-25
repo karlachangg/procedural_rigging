@@ -99,7 +99,7 @@ class Neck():
 
         switchCtr = control.Control(prefix='{}_FKIK'.format(self.prefix), translateTo=self.neckHeadJoints[0],
                                     scale=self.rigScale * 0.5, parent=self.rigmodule.controlsGrp, shape='plus',
-                                    color='yellow')
+                                    color='yellow', lockChannels= ['t', 'r', 's', 'v'])
         switch_attr = 'FKIK_Switch'
         mc.addAttr(switchCtr.C, ln=switch_attr, at='double', min=0, max=1, dv=0, k=1)
 
@@ -107,6 +107,9 @@ class Neck():
 
         # Define rigParts properties
         self.rigParts['switchControl'] = switchCtr
+
+        # Create class member so we can access later
+        self.FKIKAttr = '{}.{}'.format( switchCtr.C, switch_attr)
 
         # make reverse node
         reverse = mc.shadingNode('reverse', asUtility=True, n='{}_neck_switch_reverse'.format(self.prefix))
@@ -318,7 +321,7 @@ class Neck():
         if self.middleControl:
 
             middleCtrl = control.Control(prefix = '{}_Middle'.format(self.prefix), scale = self.rigScale * 1.5,
-                                           shape='squareY', color = 'cyan', parent = self.rigmodule.controlsGrp )
+                                           shape='cube', color = 'cyan', parent = self.rigmodule.controlsGrp )
 
             # position middle control
             mc.delete(mc.pointConstraint(headCtr.C, neckBaseCtr.C, middleCtrl.Off, mo=0))
@@ -521,12 +524,6 @@ class Neck():
         mc.connectAttr('{}.worldMatrix[0]'.format(neckBaseCtr.C), '{}.dWorldUpMatrix'.format(neckIk))
 
 
-        # connect IK spine joints to deformation skeleton
-        # Connect deformation joints to ik joints
-
-
-        # connect head joint to head control
-        mc.orientConstraint(headCtr.C, ikHeadJoint, mo=1)
 
 
         # make head orient groups
@@ -633,8 +630,8 @@ class Neck():
         mc.connectAttr('{}.outputX'.format(stretchRatio), '{}.color1.color1R'.format(blenderStretch))
         mc.setAttr('{}.color2.color2R'.format(blenderStretch), 1)
 
-        # Connect output of stretchRatio with all spine joints scaleY except last
-        for jnt in ikNeckJoints[:-1]:
+        # Connect output of stretchRatio with all spine joints scale except last
+        for jnt in ikNeckJoints[:-2]:
             mc.connectAttr('{}.outputR'.format(blenderStretch), '{}.{}'.format(jnt, stretchAxis))
 
         # set up neck squash
@@ -657,12 +654,28 @@ class Neck():
         mc.setAttr('{}.color2.color2G'.format(blenderStretch), 1)
         mc.setAttr('{}.color2.color2B'.format(blenderStretch), 1)
 
-        # Connect output X to scale X and Z of spine joints except first and last
+        # Connect output X to squash scales of spine joints except first and last
         for jnt in ikNeckJoints[1:-1]:
             mc.connectAttr('{}.outputG'.format(blenderStretch), '{}.{}'.format(jnt, squashAxis1))
             mc.connectAttr('{}.outputB'.format(blenderStretch), '{}.{}'.format(jnt, squashAxis2))
 
+        # connect head joint to head control
+        mc.orientConstraint(headCtr.C, ikHeadJoint, mo=1)
 
+        # connect head joint position to head control or locator holding head position
+
+        # Make locator to hold head joint position
+        headLocator = mc.spaceLocator(n='{}_headPosition'.format(self.prefix))[0]
+        mc.delete(mc.parentConstraint(ikHeadJoint, headLocator, mo=0))
+        mc.parent(headLocator, ikNeckJoints[-1])
+
+        # Make chest joint follow chest control position when stretchy, and chest locator when not
+        head_pConstraint = mc.pointConstraint(headCtr.C, headLocator, ikHeadJoint, mo=1)[0]
+        headWeights = mc.pointConstraint(head_pConstraint, q=1, weightAliasList=1)
+        mc.connectAttr(self.StretchyAttr, '{}.{}'.format(head_pConstraint, headWeights[0]))
+        reverse = mc.shadingNode('reverse', asUtility=True, n='{}_head_pointconstraint_reverse'.format(self.prefix))
+        mc.connectAttr(self.StretchyAttr, '{}.inputX'.format(reverse))
+        mc.connectAttr('{}.outputX'.format(reverse), '{}.{}'.format(head_pConstraint, headWeights[1]))
 
 
         # rigParts dictionary
@@ -672,11 +685,13 @@ class Neck():
         return {'joints': ikJoints, 'controls': controls}
 
     def setInitialValues(self,
+                         FKIKMode = 1,
                          Stretchy = 1,
                          HeadFollow = 1 ,
                          HeadFKOrient = 0
                          ):
 
+        mc.setAttr(self.FKIKAttr, FKIKMode)
         mc.setAttr(self.StretchyAttr, Stretchy)
         mc.setAttr(self.HeadFollow, HeadFollow)
         mc.setAttr(self.HeadFKOrient, HeadFKOrient)

@@ -232,6 +232,24 @@ class Foot():
         mc.parent(self.heelLoc, heelCtr.C)
         mc.hide(self.heelLoc)
 
+        # Create custom attributes
+        roll_attr = 'Roll'
+        ball_angle_attr = 'Ball_Roll_Angle'
+        toe_angle_attr = 'Toe_Roll_Angle'
+        rock_attr = 'Rock'
+
+        # Add roll attributes to foot control
+        mc.addAttr(self.ikFootCtr.C, ln=roll_attr, at='double', dv=0, k=1)
+        mc.addAttr(self.ikFootCtr.C, ln=rock_attr, at='double', dv=0, k=1)
+        mc.addAttr(self.ikFootCtr.C, ln=ball_angle_attr, at='double', dv=0, k=1)
+        mc.addAttr(self.ikFootCtr.C, ln=toe_angle_attr, at='double', dv=0, k=1)
+
+        # Create class member so we can access later
+        self.RollAttr = '{}.{}'.format(self.ikFootCtr.C, roll_attr)
+        self.RockAttr = '{}.{}'.format(self.ikFootCtr.C, rock_attr)
+        self.BallRollAngleAttr = '{}.{}'.format(self.ikFootCtr.C, ball_angle_attr)
+        self.ToeRollAngleAttr = '{}.{}'.format(self.ikFootCtr.C, toe_angle_attr)
+
         # Create groups for inner and outer locators
 
         innerPivot_Grp = self.innerLoc + '_grp'
@@ -284,13 +302,6 @@ class Foot():
 
 
         # Set up Roll
-        roll_attr = 'Roll'
-        ball_angle_attr = 'Ball_Roll_Angle'
-        toe_angle_attr = 'Toe_Roll_Angle'
-
-        # Create class member so we can access later
-        self.BallRollAngleAttr = '{}.{}'.format(self.ikFootCtr.C, ball_angle_attr)
-        self.ToeRollAngleAttr = '{}.{}'.format(self.ikFootCtr.C, toe_angle_attr)
 
        # Set up foot roll connections
         footRoll(
@@ -308,6 +319,7 @@ class Foot():
         # Set up rock
         footRock(
             footCtr = self.ikFootCtr,
+            rock_attr = rock_attr,
             rockAxis = self.rockAxis,
             outer = outerPivot_Grp,
             inner = innerPivot_Grp
@@ -327,9 +339,6 @@ class Foot():
         toeEndIKJoint = joint.duplicateChain(self.toeJoints[-1], 'jnt', 'IK_jnt')[0]
         mc.parent(toeEndIKJoint, self.ikParentJoint)
 
-        #footJoints = [self.ikParentJoint]
-        #footJoints.extend(ikJoints)
-
 
         # Create toeEnd CTR and heel CTR
         toeEndCtr = control.Control(prefix='{}_toeRoll'.format(self.prefix), translateTo= toeEndIKJoint,
@@ -340,6 +349,24 @@ class Foot():
 
         mc.parent(self.heelLoc, heelCtr.C)
         mc.hide(self.heelLoc)
+
+        # Create custom attributes
+        roll_attr = 'Roll'
+        ball_angle_attr = 'Ball_Roll_Angle'
+        toe_angle_attr = 'Toe_Roll_Angle'
+        rock_attr = 'Rock'
+
+        # Add roll attributes to foot control
+        mc.addAttr(self.ikFootCtr.C, ln=roll_attr, at='double', dv=0, k=1)
+        mc.addAttr(self.ikFootCtr.C, ln=rock_attr, at='double', dv=0, k=1)
+        mc.addAttr(self.ikFootCtr.C, ln=ball_angle_attr, at='double', dv=0, k=1)
+        mc.addAttr(self.ikFootCtr.C, ln=toe_angle_attr, at='double', dv=0, k=1)
+
+        # Create class member so we can access later
+        self.RollAttr = '{}.{}'.format(self.ikFootCtr.C, roll_attr)
+        self.RockAttr = '{}.{}'.format(self.ikFootCtr.C, rock_attr)
+        self.BallRollAngleAttr = '{}.{}'.format(self.ikFootCtr.C, ball_angle_attr)
+        self.ToeRollAngleAttr = '{}.{}'.format(self.ikFootCtr.C, toe_angle_attr)
 
 
         # Create groups for inner and outer locators
@@ -374,28 +401,7 @@ class Foot():
         mc.parent(toeEndCtr.Off, heelCtr.C)
         mc.parent(heelCtr.Off, outerPivot_Grp)
         mc.parent(outerPivot_Grp, innerPivot_Grp)
-
-        # Create a group to hold our feet controls and pivots
-        #footRigGrp = mc.group(n='{}_feetRigGrp'.format(self.prefix), em=1)
-        #mc.delete(mc.pointConstraint(self.ikParentCtr.C, footRigGrp))
-        #mc.parent(innerPivot_Grp, footRigGrp)
         mc.parent(innerPivot_Grp, self.ikFootCtr.C)
-
-        # Delete the constraint on the ikGroup
-        #mc.delete(mc.listRelatives(self.ikGroupToDrive, c=1, type='parentConstraint')[0])
-        # Drive the ikGroup from the limb to the ballCtr.C
-        #mc.parentConstraint(ballCtr.C, self.ikGroupToDrive, mo=1)
-
-
-
-        # Set up foot roll
-        roll_attr = 'Roll'
-        ball_angle_attr = 'Ball_Roll_Angle'
-        toe_angle_attr = 'Toe_Roll_Angle'
-
-        # Create class member so we can access later
-        self.BallRollAngleAttr = '{}.{}'.format(self.ikFootCtr.C, ball_angle_attr)
-        self.ToeRollAngleAttr = '{}.{}'.format(self.ikFootCtr.C, toe_angle_attr)
 
 
         footRoll(
@@ -413,6 +419,7 @@ class Foot():
         # Set up rock
         footRock(
             footCtr = self.ikFootCtr,
+            rock_attr = rock_attr,
             rockAxis = self.rockAxis,
             outer = outerPivot_Grp,
             inner = innerPivot_Grp
@@ -448,13 +455,10 @@ def footRoll(
 ):
 
 
-    # Add roll attributes to foot control
-    mc.addAttr(footCtr.C, ln=roll_attr, at='double', dv=0, k=1)
 
-    mc.addAttr(footCtr.C, ln=ball_angle_attr, at='double', dv=0, k=1)
     mc.setAttr('{}.{}'.format(footCtr.C, ball_angle_attr), 45)
 
-    mc.addAttr(footCtr.C, ln=toe_angle_attr, at='double', dv=0, k=1)
+
     mc.setAttr('{}.{}'.format(footCtr.C, toe_angle_attr), 60)
 
     # Connect heel pivot
@@ -595,14 +599,13 @@ def footRoll(
 
 def footRock(
             footCtr,
+            rock_attr,
             rockAxis,
             outer,
             inner
             ):
 
-    # Set up rock
-    rock_attr = 'Rock'
-    mc.addAttr(footCtr.C, ln=rock_attr, at='double', dv=0, k=1)
+
 
     if 'x' in rockAxis:
         rockAxisAttr = 'rotateX'

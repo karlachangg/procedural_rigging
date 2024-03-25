@@ -48,35 +48,54 @@ class Tail():
 
         # Make FK rig
         fkRig = self.buildFK()
-        tailBaseCtr = fkRig['controls'][0]
 
-        # Connect deformation joints to fk joints
-
-        constraints = []
-
-        for i in range(len(self.tailJoints)):
-            constraints.append(mc.parentConstraint(fkRig['joints'][i], self.tailJoints[i], mo=0)[0])
-            mc.connectAttr('{}.scale'.format(fkRig['joints'][i]), '{}.scale'.format(self.tailJoints[i]))
+        # Define rigParts properties
+        self.rigParts['fkControls'] = fkRig['controls']
 
         # Create body attach group
-        bodyAttachGrp = mc.group(n = '{}_bodyAttachGrp'.format(self.prefix), em = 1)
-        bodyAttachOrient = mc.group(n = '{}_bodyAttachOrient'.format(self.prefix), em = 1)
+        bodyAttachGrp = mc.group(n='{}_bodyAttachGrp'.format(self.prefix), em=1)
+        mc.delete(mc.parentConstraint(self.tailJoints[0], bodyAttachGrp, mo = 0))
+
+        mc.parentConstraint(bodyAttachGrp, fkRig['fkBodyAttach'], mo = 1)
+
+        # rigParts dictionary
+        self.rigParts = {
+            'bodyAttachGrp': bodyAttachGrp
+        }
+
+
+    def buildFK(self):
+
+        # duplicate tail joints to make FK joints
+        fkJoints = joint.duplicateChain(self.tailJoints, 'jnt', 'FK_jnt')
+        mc.parent(fkJoints[0], self.rigmodule.jointsGrp)
+
+        # make controls
+
+        tailFKRig = fkChain.build(fkJoints[:-1], rigScale=self.rigScale * 1.5, parent = self.rigmodule.controlsGrp,
+                                       smallestScalePercent= 0.25, offsets=['null', 'zero', 'auto'])
+
+        tailBaseCtr = tailFKRig['controls'][0]
+
+        # Create body attach group
+        bodyAttachGrp_FK = mc.group(n='{}_FK_bodyAttachGrp'.format(self.prefix), em=1)
+        bodyAttachOrient = mc.group(n='{}_bodyAttachOrient'.format(self.prefix), em=1)
         hipsOrient = mc.group(n='{}_hipsOrient'.format(self.prefix), em=1)
         worldOrient = mc.group(n='{}_worldOrient'.format(self.prefix), em=1)
 
-        mc.parent(bodyAttachOrient, bodyAttachGrp)
-        mc.parent(hipsOrient, bodyAttachGrp)
+        mc.parent(bodyAttachOrient, bodyAttachGrp_FK)
+        mc.parent(hipsOrient, bodyAttachGrp_FK)
         mc.parent(worldOrient, self.rigmodule.partsGrp)
-        mc.parent(bodyAttachGrp, self.rigmodule.partsGrp)
+        mc.parent(bodyAttachGrp_FK, self.rigmodule.partsGrp)
 
         # Position bodyAttachGroup at tail base
-        mc.delete(mc.parentConstraint(tailBaseCtr.C, bodyAttachGrp, mo = 0))
+        mc.delete(mc.parentConstraint(tailBaseCtr.C, bodyAttachGrp_FK, mo=0))
 
         # Position worldOrient group to match tail base starting orientation
         mc.delete(mc.parentConstraint(tailBaseCtr.C, worldOrient, mo=0))
 
         # Parent constrain tail base to body attach orient group
-        mc.parentConstraint(bodyAttachOrient, tailBaseCtr.Off, mo = 1)
+        mc.parentConstraint(bodyAttachOrient, tailBaseCtr.Off, mo=1)
 
         # Set up tail orientation space switch
         attr = "Tail_Orient"
@@ -84,7 +103,7 @@ class Tail():
         mc.setAttr('{}.{}'.format(tailBaseCtr.C, attr), cb=1)
 
         # orient constraint head control
-        tailOrientConstraint = mc.orientConstraint(hipsOrient, worldOrient, bodyAttachOrient, mo = 1)[0]
+        tailOrientConstraint = mc.orientConstraint(hipsOrient, worldOrient, bodyAttachOrient, mo=1)[0]
         weights = mc.orientConstraint(tailOrientConstraint, q=1, weightAliasList=1)
 
         # set driven key for hips orient
@@ -108,22 +127,5 @@ class Tail():
         # set default to follow hips
         mc.setAttr('{}.{}'.format(tailBaseCtr.C, attr), 0)
 
-        # rigParts dictionary
-        self.rigParts = {
-            'bodyAttachGrp': bodyAttachGrp
-        }
 
-
-    def buildFK(self):
-
-        # duplicate arm joints to make FK joints
-        fkJoints = joint.duplicateChain(self.tailJoints, 'jnt', 'FK_jnt')
-        mc.parent(fkJoints[0], self.rigmodule.jointsGrp)
-
-        # make controls
-
-        tailFKRig = fkChain.build(fkJoints[:-1], rigScale=self.rigScale * 1.5, parent = self.rigmodule.controlsGrp,
-                                       smallestScalePercent= 0.25, offsets=['null', 'zero', 'auto'])
-
-
-        return {'joints': fkJoints, 'controls': tailFKRig['controls']}
+        return {'joints': fkJoints, 'controls': tailFKRig['controls'], 'fkBodyAttach': bodyAttachGrp_FK}

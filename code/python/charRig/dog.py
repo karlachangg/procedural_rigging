@@ -37,6 +37,8 @@ class Dog(char.Character):
         self.buildExtraControls(self.baseRig)
         self.deform()
         self.loadControlShapes()
+        self.setInitialValues()
+        self.delivery()
         #self.setInitialPose()
 
     def buildRig(self, baseRig):
@@ -72,6 +74,7 @@ class Dog(char.Character):
             prefix = 'neck',
             forwardAxis = 'x',
             upAxis = 'z',
+            middleControl= True,
             rigScale = self.sceneScale,
             baseRig = baseRig
         )
@@ -451,4 +454,25 @@ class Dog(char.Character):
         mc.parent(jawConstraint, head_rigmodule.noXformGrp)
 
         # Face - Blink eye
+
+    def setInitialValues(self):
+
+        #mc.setAttr('{}.{}'.format(self.baseRig.mainCtrl.C, 'jointsVis'), 0)
+
+        self.spineRig.setInitialValues(FKIKMode= 1, Stretchy = 1)
+
+        self.neckRig.setInitialValues(FKIKMode=1,  Stretchy=1)
+
+
+        self.leftArmRig.setInitialValues(FKIKMode=1, Stretchy=0)
+        self.leftFrontFootRig.setInitialValues(BallRollAngle= 10, ToeRollAngle=60)
+
+        self.rightArmRig.setInitialValues(FKIKMode=1, Stretchy=0)
+        self.rightFrontFootRig.setInitialValues(BallRollAngle= 10, ToeRollAngle=60)
+
+        self.leftLegRig.setInitialValues(FKIKMode=1, Stretchy=0)
+        self.leftBackFootRig.setInitialValues(BallRollAngle= 10, ToeRollAngle=60)
+
+        self.rightLegRig.setInitialValues(FKIKMode=1, Stretchy=0)
+        self.rightBackFootRig.setInitialValues(BallRollAngle= 10, ToeRollAngle=60)
 
