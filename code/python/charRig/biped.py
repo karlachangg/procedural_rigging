@@ -83,7 +83,6 @@ class Biped(char.Character):
         outer_loc = 'foot_outer_loc'
 
         self.leftLegRig = leg.Leg(
-            type = '2bones',
             legJoints = legJoints,
             hipPivotJoint = hipPivotJoint,
             prefix = 'leg',
@@ -98,8 +97,9 @@ class Biped(char.Character):
 
         self.leftLegRig.build()
 
+        # attach left leg to spine
+
         self.rightLegRig = leg.Leg(
-            type = '2bones',
             legJoints = legJoints,
             hipPivotJoint = hipPivotJoint,
             prefix = 'leg',

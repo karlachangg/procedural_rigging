@@ -14,7 +14,6 @@ from ..utils import joint
 class Leg():
 
     def __init__(self,
-            type,
             legJoints,
             hipPivotJoint,
             prefix = 'leg',
@@ -43,7 +42,7 @@ class Leg():
         :param baseRig: instance of base.module.Base class
         :return: dictionary with rig module objects
         """
-        self.type = type
+
         self.legJoints = []
 
         for jnt in legJoints:
@@ -92,10 +91,8 @@ class Leg():
         self.rigParts['fkJoints'] = fkRig['joints']
 
         # Make IK rig
-        if self.type == '2bones':
-            ikRig = self.buildIK()
-        elif self.type == '3bones':
-            ikRig = self.buildQuadIK()
+        ikRig = self.buildIK()
+
 
         self.rigParts['ikJoints'] = ikRig['joints']
 
@@ -119,11 +116,15 @@ class Leg():
         # Connect deformation joints to fk and ik joints
 
         orientConstraints = []
+        pointConstraints = []
 
         for i in range(len(self.legJoints)):
             oConstraint = mc.orientConstraint(fkRig['joints'][i], ikRig['joints'][i], self.legJoints[i], mo=0)[0]
             mc.setAttr('{}.interpType'.format(oConstraint), 2)
             orientConstraints.append(oConstraint)
+
+            pConstraint = mc.pointConstraint(fkRig['joints'][i], ikRig['joints'][i], self.legJoints[i], mo=0)[0]
+            pointConstraints.append(pConstraint)
 
         # make reverse node
         reverse = mc.shadingNode('reverse', asUtility=True, n='{}_switch_reverse'.format(self.prefix))
@@ -134,27 +135,50 @@ class Leg():
             mc.connectAttr('{}.{}'.format(switchCtr.C, switch_attr), '{}.{}'.format( constraint, weights[1] ) )
             mc.connectAttr('{}.outputX'.format(reverse), '{}.{}'.format(constraint, weights[0]))
 
+        for constraint in pointConstraints:
+            weights = mc.pointConstraint(constraint, q=1, weightAliasList=1)
+            mc.connectAttr('{}.{}'.format(switchCtr.C, switch_attr), '{}.{}'.format(constraint, weights[1]))
+            mc.connectAttr('{}.outputX'.format(reverse), '{}.{}'.format(constraint, weights[0]))
 
-        # Setup blend between joint scales
+
+
+        # Setup blend between joints scale and translations
 
         for i in range(len(self.legJoints)):
 
-            blendNode = mc.shadingNode('blendColors', asUtility=True,
+            blendNode_Scale = mc.shadingNode('blendColors', asUtility=True,
                                        n='{}_jointScale_blend{}'.format(self.prefix, i))
-            mc.connectAttr('{}.{}'.format(switchCtr.C, switch_attr), '{}.blender'.format(blendNode))
+            mc.connectAttr('{}.{}'.format(switchCtr.C, switch_attr), '{}.blender'.format(blendNode_Scale))
 
-            mc.connectAttr('{}.sx'.format(ikRig['joints'][i]), '{}.color1.color1R'.format(blendNode))
-            mc.connectAttr('{}.sy'.format(ikRig['joints'][i]), '{}.color1.color1G'.format(blendNode))
-            mc.connectAttr('{}.sz'.format(ikRig['joints'][i]), '{}.color1.color1B'.format(blendNode))
+            mc.connectAttr('{}.sx'.format(ikRig['joints'][i]), '{}.color1.color1R'.format(blendNode_Scale))
+            mc.connectAttr('{}.sy'.format(ikRig['joints'][i]), '{}.color1.color1G'.format(blendNode_Scale))
+            mc.connectAttr('{}.sz'.format(ikRig['joints'][i]), '{}.color1.color1B'.format(blendNode_Scale))
 
-            mc.connectAttr('{}.sx'.format(fkRig['joints'][i]), '{}.color2.color2R'.format(blendNode))
-            mc.connectAttr('{}.sy'.format(fkRig['joints'][i]), '{}.color2.color2G'.format(blendNode))
-            mc.connectAttr('{}.sz'.format(fkRig['joints'][i]), '{}.color2.color2B'.format(blendNode))
+            mc.connectAttr('{}.sx'.format(fkRig['joints'][i]), '{}.color2.color2R'.format(blendNode_Scale))
+            mc.connectAttr('{}.sy'.format(fkRig['joints'][i]), '{}.color2.color2G'.format(blendNode_Scale))
+            mc.connectAttr('{}.sz'.format(fkRig['joints'][i]), '{}.color2.color2B'.format(blendNode_Scale))
 
-            mc.connectAttr('{}.outputR'.format(blendNode), '{}.sx'.format(self.legJoints[i]))
-            mc.connectAttr('{}.outputG'.format(blendNode), '{}.sy'.format(self.legJoints[i]))
-            mc.connectAttr('{}.outputB'.format(blendNode), '{}.sz'.format(self.legJoints[i]))
+            mc.connectAttr('{}.outputR'.format(blendNode_Scale), '{}.sx'.format(self.legJoints[i]))
+            mc.connectAttr('{}.outputG'.format(blendNode_Scale), '{}.sy'.format(self.legJoints[i]))
+            mc.connectAttr('{}.outputB'.format(blendNode_Scale), '{}.sz'.format(self.legJoints[i]))
 
+            '''
+            blendNode_Translation = mc.shadingNode('blendColors', asUtility=True,
+                                             n='{}_jointTranslation_blend{}'.format(self.prefix, i))
+            mc.connectAttr('{}.{}'.format(switchCtr.C, switch_attr), '{}.blender'.format(blendNode_Translation))
+
+            mc.connectAttr('{}.tx'.format(ikRig['joints'][i]), '{}.color1.color1R'.format(blendNode_Translation))
+            mc.connectAttr('{}.ty'.format(ikRig['joints'][i]), '{}.color1.color1G'.format(blendNode_Translation))
+            mc.connectAttr('{}.tz'.format(ikRig['joints'][i]), '{}.color1.color1B'.format(blendNode_Translation))
+
+            mc.connectAttr('{}.tx'.format(fkRig['joints'][i]), '{}.color2.color2R'.format(blendNode_Translation))
+            mc.connectAttr('{}.ty'.format(fkRig['joints'][i]), '{}.color2.color2G'.format(blendNode_Translation))
+            mc.connectAttr('{}.tz'.format(fkRig['joints'][i]), '{}.color2.color2B'.format(blendNode_Translation))
+
+            mc.connectAttr('{}.outputR'.format(blendNode_Translation), '{}.tx'.format(self.legJoints[i]))
+            mc.connectAttr('{}.outputG'.format(blendNode_Translation), '{}.ty'.format(self.legJoints[i]))
+            mc.connectAttr('{}.outputB'.format(blendNode_Translation), '{}.tz'.format(self.legJoints[i]))
+            '''
 
         for ctrl in fkRig['controls']:
             mc.connectAttr('{}.outputX'.format(reverse), '{}.v'.format( ctrl.Off ) )
@@ -294,7 +318,7 @@ class Leg():
         mc.parentConstraint(footCtr.C, fkJoints[2], mo=0)
 
         # attach to hip pivot
-        constraint = mc.pointConstraint(self.hipPivotJoint, hipCtr.Off, mo=1)[0]
+        constraint = mc.parentConstraint(self.hipPivotJoint, hipCtr.Off, mo=1)[0]
         constraintGrp = mc.group(constraint, n= '{}_fk_constraintGrp'.format(self.prefix))
         mc.parent(constraintGrp, self.baseRig.noXformGrp)
 

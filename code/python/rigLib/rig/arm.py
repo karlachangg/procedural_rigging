@@ -21,6 +21,7 @@ class Arm():
             ikCtrOrient = 'bone',
             elbowDirection = '-z',
             forwardAxis = 'x',
+            upAxis = 'y',
             elbowSpinAxis = 'x',
             moveSwitchCtr = 'x, y',
 
@@ -54,6 +55,7 @@ class Arm():
         self.bendy = bendy
         self.elbowDirection = elbowDirection
         self.forwardAxis = forwardAxis
+        self.upAxis = upAxis
         self.elbowSpinAxis = elbowSpinAxis
         self.moveSwitchCtr = moveSwitchCtr
 
@@ -112,11 +114,15 @@ class Arm():
 
 
         orientConstraints = []
+        pointConstraints = []
 
         for i in range(len(self.armJoints)):
             oConstraint = mc.orientConstraint(fkRig['joints'][i], ikRig['joints'][i], self.armJoints[i], mo=0)[0]
             mc.setAttr('{}.interpType'.format(oConstraint), 2)
             orientConstraints.append(oConstraint)
+
+            pConstraint = mc.pointConstraint(fkRig['joints'][i], ikRig['joints'][i], self.armJoints[i], mo=0)[0]
+            pointConstraints.append(pConstraint)
 
         # make reverse node
         reverse = mc.shadingNode('reverse', asUtility=True, n='{}_switch_reverse'.format(self.prefix))
@@ -127,25 +133,50 @@ class Arm():
             mc.connectAttr('{}.{}'.format(self.switchCtr.C, switch_attr), '{}.{}'.format(constraint, weights[1]))
             mc.connectAttr('{}.outputX'.format(reverse), '{}.{}'.format(constraint, weights[0]))
 
+        for constraint in pointConstraints:
+            weights = mc.pointConstraint(constraint, q=1, weightAliasList=1)
+            mc.connectAttr('{}.{}'.format(self.switchCtr.C, switch_attr), '{}.{}'.format(constraint, weights[1]))
+            mc.connectAttr('{}.outputX'.format(reverse), '{}.{}'.format(constraint, weights[0]))
 
-        # Setup blend between joint scales
+
+
+        # Setup blend between joints scale
 
         for i in range(len(self.armJoints)):
-            blendNode = mc.shadingNode('blendColors', asUtility=True,
-                                       n='{}_jointScale_blend{}'.format(self.prefix, i))
-            mc.connectAttr('{}.{}'.format(self.switchCtr.C, switch_attr), '{}.blender'.format(blendNode))
 
-            mc.connectAttr('{}.sx'.format(ikRig['joints'][i]), '{}.color1.color1R'.format(blendNode))
-            mc.connectAttr('{}.sy'.format(ikRig['joints'][i]), '{}.color1.color1G'.format(blendNode))
-            mc.connectAttr('{}.sz'.format(ikRig['joints'][i]), '{}.color1.color1B'.format(blendNode))
+            blendNode_Scale = mc.shadingNode('blendColors', asUtility=True,
+                                             n='{}_jointScale_blend{}'.format(self.prefix, i))
+            mc.connectAttr('{}.{}'.format(self.switchCtr.C, switch_attr), '{}.blender'.format(blendNode_Scale))
 
-            mc.connectAttr('{}.sx'.format(fkRig['joints'][i]), '{}.color2.color2R'.format(blendNode))
-            mc.connectAttr('{}.sy'.format(fkRig['joints'][i]), '{}.color2.color2G'.format(blendNode))
-            mc.connectAttr('{}.sz'.format(fkRig['joints'][i]), '{}.color2.color2B'.format(blendNode))
+            mc.connectAttr('{}.sx'.format(ikRig['joints'][i]), '{}.color1.color1R'.format(blendNode_Scale))
+            mc.connectAttr('{}.sy'.format(ikRig['joints'][i]), '{}.color1.color1G'.format(blendNode_Scale))
+            mc.connectAttr('{}.sz'.format(ikRig['joints'][i]), '{}.color1.color1B'.format(blendNode_Scale))
 
-            mc.connectAttr('{}.outputR'.format(blendNode), '{}.sx'.format(self.armJoints[i]))
-            mc.connectAttr('{}.outputG'.format(blendNode), '{}.sy'.format(self.armJoints[i]))
-            mc.connectAttr('{}.outputB'.format(blendNode), '{}.sz'.format(self.armJoints[i]))
+            mc.connectAttr('{}.sx'.format(fkRig['joints'][i]), '{}.color2.color2R'.format(blendNode_Scale))
+            mc.connectAttr('{}.sy'.format(fkRig['joints'][i]), '{}.color2.color2G'.format(blendNode_Scale))
+            mc.connectAttr('{}.sz'.format(fkRig['joints'][i]), '{}.color2.color2B'.format(blendNode_Scale))
+
+            mc.connectAttr('{}.outputR'.format(blendNode_Scale), '{}.sx'.format(self.armJoints[i]))
+            mc.connectAttr('{}.outputG'.format(blendNode_Scale), '{}.sy'.format(self.armJoints[i]))
+            mc.connectAttr('{}.outputB'.format(blendNode_Scale), '{}.sz'.format(self.armJoints[i]))
+
+            '''
+            blendNode_Translation = mc.shadingNode('blendColors', asUtility=True,
+                                                   n='{}_jointTranslation_blend{}'.format(self.prefix, i))
+            mc.connectAttr('{}.{}'.format(self.switchCtr.C, switch_attr), '{}.blender'.format(blendNode_Translation))
+
+            mc.connectAttr('{}.tx'.format(ikRig['joints'][i]), '{}.color1.color1R'.format(blendNode_Translation))
+            mc.connectAttr('{}.ty'.format(ikRig['joints'][i]), '{}.color1.color1G'.format(blendNode_Translation))
+            mc.connectAttr('{}.tz'.format(ikRig['joints'][i]), '{}.color1.color1B'.format(blendNode_Translation))
+
+            mc.connectAttr('{}.tx'.format(fkRig['joints'][i]), '{}.color2.color2R'.format(blendNode_Translation))
+            mc.connectAttr('{}.ty'.format(fkRig['joints'][i]), '{}.color2.color2G'.format(blendNode_Translation))
+            mc.connectAttr('{}.tz'.format(fkRig['joints'][i]), '{}.color2.color2B'.format(blendNode_Translation))
+
+            mc.connectAttr('{}.outputR'.format(blendNode_Translation), '{}.tx'.format(self.armJoints[i]))
+            mc.connectAttr('{}.outputG'.format(blendNode_Translation), '{}.ty'.format(self.armJoints[i]))
+            mc.connectAttr('{}.outputB'.format(blendNode_Translation), '{}.tz'.format(self.armJoints[i]))
+            '''
 
 
         for ctrl in fkRig['controls']:
@@ -210,12 +241,7 @@ class Arm():
 
         # Insert the bendy joints to our deformation skeleton
 
-        if self.side == 'l':
-            aimAxis = 'x'
-            upAxis = 'y'
-        elif self.side == 'r':
-            aimAxis = '-x'
-            upAxis = '-y'
+
 
         # Build the upper leg bendy rig
         upperArmBendy = bendyLimb.BendyLimb(
@@ -223,8 +249,8 @@ class Arm():
             endJoint=self.armJoints[1],
             numberOfBendyJoints=4,
             numberOfBendyControls=3,
-            aimAxis= aimAxis,
-            upAxis= upAxis,
+            aimAxis= self.forwardAxis,
+            upAxis= self.upAxis,
             prefix= '{}_shoulder'.format(self.side) ,
             rigScale = self.rigScale,
             baseRig=self.baseRig)
@@ -236,8 +262,8 @@ class Arm():
             endJoint=self.armJoints[2],
             numberOfBendyJoints=4,
             numberOfBendyControls=3,
-            aimAxis=aimAxis,
-            upAxis=upAxis,
+            aimAxis=self.forwardAxis,
+            upAxis=self.upAxis,
             prefix='{}_elbow'.format(self.side),
             rigScale=self.rigScale,
             baseRig=self.baseRig)
