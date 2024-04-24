@@ -342,8 +342,8 @@ class Leg():
         controls = []
         legCtr = control.Control(prefix='{}_leg_ik'.format(self.prefix), translateTo=ikJoints[2],
                                   scale=self.rigScale, parent = self.rigmodule.controlsGrp, shape='cube')
-        poleVectorCtr = control.Control(prefix='{}_leg_pv'.format(self.prefix), translateTo=ikJoints[1], rotateTo = ikJoints[2],
-                                 scale=self.rigScale * 0.5, parent = self.rigmodule.controlsGrp, shape='orb')
+        poleVectorCtr = control.Control(prefix='{}_leg_pv'.format(self.prefix), translateTo=ikJoints[1], rotateTo = ikJoints[1],
+                                 scale=self.rigScale * 0.5, parent = self.rigmodule.controlsGrp, shape='locator')
 
         controls = [legCtr, poleVectorCtr]
 
@@ -470,6 +470,7 @@ class Leg():
         mc.parent(poleVectorCurve, self.rigmodule.controlsGrp)
         mc.setAttr('{}.template'.format(poleVectorCurve), 1)
         mc.setAttr('{}.it'.format(poleVectorCurve), 0)
+
 
 
 

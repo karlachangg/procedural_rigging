@@ -618,7 +618,7 @@ class Arm():
 
         scapCtr = control.Control(prefix='{}_scapula'.format(self.prefix), translateTo= self.scapulaJoint,
                                   rotateTo = self.scapulaJoint, scale=self.rigScale, parent=self.rigmodule.controlsGrp,
-                                  shape = 'quadArrow', offsets= ['null', 'zero', 'auto'])
+                                  shape = 'circle', offsets= ['null', 'zero', 'auto'])
 
         scapAimCtr = control.Control(prefix='{}_scapula_translate'.format(self.prefix), translateTo= self.armJoints[0], rotateTo= self.armJoints[0],
                                   scale=self.rigScale, parent=self.rigmodule.controlsGrp, shape = 'squareY',

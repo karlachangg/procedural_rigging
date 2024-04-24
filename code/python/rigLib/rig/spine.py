@@ -352,7 +352,8 @@ class Spine():
         mc.parent(followChest, chestCtrlIK.C)
         mc.parent(followHips, hipsCtrlIK.C)
 
-        mc.pointConstraint(followChest, followHips, middleCtrlIK.Off, mo=1)
+        middleConstraint = mc.parentConstraint(followChest, followHips, middleCtrlIK.Off, mo=1)[0]
+        mc.setAttr('{}.interpType'.format(middleConstraint), 2)
 
 
         # Parent IK controls to hybrid FK controls
@@ -403,27 +404,32 @@ class Spine():
         # connect spine CV drivers to locators at hips, chest, and middle
         # cv 0
         mc.parentConstraint(spineLocators[0], driverLocatorOffsets[0], mo=True)
-        # cv 3
-        mc.parentConstraint(spineLocators[1], driverLocatorOffsets[3], mo=True)
-        # cv 6
-        mc.parentConstraint(spineLocators[2], driverLocatorOffsets[6], mo=True)
+        # cv 4
+        mc.parentConstraint(spineLocators[1], driverLocatorOffsets[4], mo=True)
+        # cv 8
+        mc.parentConstraint(spineLocators[2], driverLocatorOffsets[8], mo=True)
 
-        # cv 1
-        mc.parentConstraint(spineLocators[0], spineLocators[1], driverLocatorOffsets[1], mo=True)
-        mc.parentConstraint(spineLocators[0], driverLocatorOffsets[1], e=True, w=0.66)
-        mc.parentConstraint(spineLocators[1], driverLocatorOffsets[1], e=True, w=0.34)
         # cv 2
         mc.parentConstraint(spineLocators[0], spineLocators[1], driverLocatorOffsets[2], mo=True)
-        mc.parentConstraint(spineLocators[0], driverLocatorOffsets[2], e=True, w=0.34)
-        mc.parentConstraint(spineLocators[1], driverLocatorOffsets[2], e=True, w=0.66)
-        # cv 4
-        mc.parentConstraint(spineLocators[1], spineLocators[2], driverLocatorOffsets[4], mo=True)
-        mc.parentConstraint(spineLocators[1], driverLocatorOffsets[4], e=True, w=0.66)
-        mc.parentConstraint(spineLocators[2], driverLocatorOffsets[4], e=True, w=0.34)
+        mc.parentConstraint(spineLocators[0], driverLocatorOffsets[2], e=True, w=0.66)
+        mc.parentConstraint(spineLocators[1], driverLocatorOffsets[2], e=True, w=0.34)
+        # cv 3
+        mc.parentConstraint(spineLocators[0], spineLocators[1], driverLocatorOffsets[3], mo=True)
+        mc.parentConstraint(spineLocators[0], driverLocatorOffsets[3], e=True, w=0.34)
+        mc.parentConstraint(spineLocators[1], driverLocatorOffsets[3], e=True, w=0.66)
         # cv 5
         mc.parentConstraint(spineLocators[1], spineLocators[2], driverLocatorOffsets[5], mo=True)
-        mc.parentConstraint(spineLocators[1], driverLocatorOffsets[5], e=True, w=0.34)
-        mc.parentConstraint(spineLocators[2], driverLocatorOffsets[5], e=True, w=0.66)
+        mc.parentConstraint(spineLocators[1], driverLocatorOffsets[5], e=True, w=0.66)
+        mc.parentConstraint(spineLocators[2], driverLocatorOffsets[5], e=True, w=0.34)
+        # cv 6
+        mc.parentConstraint(spineLocators[1], spineLocators[2], driverLocatorOffsets[6], mo=True)
+        mc.parentConstraint(spineLocators[1], driverLocatorOffsets[6], e=True, w=0.34)
+        mc.parentConstraint(spineLocators[2], driverLocatorOffsets[6], e=True, w=0.66)
+
+        # cv 1
+        mc.parentConstraint(spineLocators[0], driverLocatorOffsets[1], mo=True)
+        # cv 7
+        mc.parentConstraint(spineLocators[2], driverLocatorOffsets[7], mo=True)
 
         # make IK handle
 

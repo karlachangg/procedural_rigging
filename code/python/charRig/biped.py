@@ -29,7 +29,8 @@ class Biped(char.Character):
         self.setup()
         self.makeControlSetup(self.baseRig)
         self.deform()
-        self.adjustControlShapes()
+        #self.adjustControlShapes()
+        self.loadControlShapes()
         self.setInitialSettings()
 
     def makeControlSetup(self, baseRig):

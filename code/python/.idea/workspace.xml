@@ -6,6 +6,8 @@
       <change beforePath="$PROJECT_DIR$/charRig/biped.py" beforeDir="false" afterPath="$PROJECT_DIR$/charRig/biped.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/rigLib/rig/arm.py" beforeDir="false" afterPath="$PROJECT_DIR$/rigLib/rig/arm.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/rigLib/rig/leg.py" beforeDir="false" afterPath="$PROJECT_DIR$/rigLib/rig/leg.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/rigLib/rig/neck.py" beforeDir="false" afterPath="$PROJECT_DIR$/rigLib/rig/neck.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/rigLib/rig/spine.py" beforeDir="false" afterPath="$PROJECT_DIR$/rigLib/rig/spine.py" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />

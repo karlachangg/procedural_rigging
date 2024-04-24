@@ -401,6 +401,7 @@ class Neck():
         mc.parentConstraint(neckLocators[0],driverLocatorOffsets[0], mo=True )
         # cv 1
         mc.parentConstraint(neckLocators[0], driverLocatorOffsets[1], mo=True)
+
         # cv 6
         mc.parentConstraint(neckLocators[-1], driverLocatorOffsets[6], mo=True)
         # cv 5
